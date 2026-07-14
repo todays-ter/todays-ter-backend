@@ -35,4 +35,13 @@ public class ApiResponse<T> {
                 .result(result)
                 .build();
     }
+
+    public static <T> ApiResponse<T> onFailure(T result, BaseCode code, String message) { // 직접 메시지 지정
+        return ApiResponse.<T> builder()
+                .isSuccess(false)
+                .code(code.getCode())
+                .message(message)
+                .result(result)
+                .build();
+    }
 }
