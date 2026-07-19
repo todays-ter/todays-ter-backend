@@ -3,6 +3,7 @@ package com.umc.todayter.domain.onboarding.service;
 import com.umc.todayter.domain.onboarding.dto.request.GuestConcernRequest;
 import com.umc.todayter.domain.onboarding.dto.request.GuestSajuRequest;
 import com.umc.todayter.domain.onboarding.dto.response.GuestConcernResponse;
+import com.umc.todayter.domain.onboarding.dto.response.GuestOnboardingResponse;
 import com.umc.todayter.domain.onboarding.dto.response.GuestSajuResponse;
 import com.umc.todayter.domain.onboarding.entity.GuestSession;
 import com.umc.todayter.domain.onboarding.entity.Onboarding;
@@ -65,6 +66,16 @@ public class GuestOnboardingService {
                 List.copyOf(onboarding.getConcernTypes()),
                 onboarding.getOnboardingStep()
         );
+    }
+
+    public GuestOnboardingResponse getOnboarding(String guestId) {
+        GuestSession guestSession = getValidGuestSession(guestId);
+
+        Onboarding onboarding = onboardingRepository
+                .findByGuestSessionId(guestSession.getId())
+                .orElseThrow(() -> new CustomException(OnboardingErrorCode.ONBOARDING_NOT_FOUND));
+
+        return GuestOnboardingResponse.from(onboarding);
     }
 
     private GuestSession getValidGuestSession(String guestId) {
