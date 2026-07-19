@@ -9,7 +9,8 @@ import org.springframework.http.HttpStatus;
 @AllArgsConstructor
 public enum OnboardingSuccessCode implements BaseCode {
 
-    SAJU_SAVED(HttpStatus.OK, "ONBOARDING200", "사주 정보가 저장되었습니다.")
+    SAJU_SAVED(HttpStatus.OK, "ONBOARDING200", "사주 정보가 저장되었습니다."),
+    CONCERNS_SAVED(HttpStatus.OK, "ONBOARDING200", "고민 유형이 저장되었습니다.")
     ;
 
     private final HttpStatus httpStatus;
