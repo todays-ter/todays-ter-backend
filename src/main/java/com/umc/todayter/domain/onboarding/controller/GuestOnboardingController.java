@@ -3,10 +3,12 @@ package com.umc.todayter.domain.onboarding.controller;
 import com.umc.todayter.domain.onboarding.dto.request.GuestConcernRequest;
 import com.umc.todayter.domain.onboarding.dto.request.GuestSajuRequest;
 import com.umc.todayter.domain.onboarding.dto.response.GuestConcernResponse;
+import com.umc.todayter.domain.onboarding.dto.response.GuestOnboardingResponse;
 import com.umc.todayter.domain.onboarding.dto.response.GuestSajuResponse;
 import com.umc.todayter.domain.onboarding.enums.code.OnboardingSuccessCode;
 import com.umc.todayter.domain.onboarding.service.GuestOnboardingService;
 import com.umc.todayter.global.apiPayload.response.ApiResponse;
+import com.umc.todayter.global.apiPayload.response.SuccessCode;
 import com.umc.todayter.global.util.GuestCookieUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -49,5 +51,19 @@ public class GuestOnboardingController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(ApiResponse.onSuccess(result, OnboardingSuccessCode.CONCERNS_SAVED));
+    }
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<GuestOnboardingResponse>> getOnboarding(
+            @CookieValue(
+                    name = GuestCookieUtil.COOKIE_NAME,
+                    required = false
+            ) String guestId
+    ) {
+        GuestOnboardingResponse result = guestOnboardingService.getOnboarding(guestId);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.onSuccess(result, SuccessCode.OK));
     }
 }
