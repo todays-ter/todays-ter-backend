@@ -22,6 +22,11 @@ spring:
         format_sql: true
         default_batch_fetch_size: 100
 
+jwt:
+  secret: ${JWT_SECRET}
+  access-expire: ${JWT_ACCESS_TOKEN_EXPIRE_MS}
+  refresh-expire: ${JWT_REFRESH_TOKEN_EXPIRE_MS}
+
 logging:
   level:
     root: INFO
