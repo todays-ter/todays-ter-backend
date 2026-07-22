@@ -71,20 +71,15 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
+                        // 추가
                         .requestMatchers(
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
-                                "/actuator/health"
-                        ).permitAll()
-
-                        .requestMatchers(
+                                "/actuator/health",
                                 "/api/guest-sessions/**",
-                                "/api/guest-onboarding/**"
-                        ).permitAll()
-
-                        .requestMatchers(
-                                "/api/dev/auth/**",
-                                "/api/auth/**"
+                                "/api/guest-onboarding/**",
+                                "/auth/dev/**",
+                                "/auth/**"
                         ).permitAll()
 
                         .anyRequest().authenticated()
