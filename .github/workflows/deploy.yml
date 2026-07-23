@@ -1,4 +1,4 @@
-name: Deploy
+name: Blue Green Deploy
 
 on:
   push:
@@ -13,114 +13,364 @@ concurrency:
   group: production-deploy
   cancel-in-progress: false
 
+env:
+  DOCKER_IMAGE: sungminju/weartrack
+  APP_PORT: "8080"
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
-      - name: 체크아웃
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Java 17 설정
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
           cache: gradle
 
-      - name: Gradle 실행 권한 부여
-        run: chmod +x gradlew
+      - name: Build Spring Boot
+        run: |
+          chmod +x gradlew
+          ./gradlew clean bootJar --no-daemon
 
-      - name: 프로젝트 빌드
-        run: ./gradlew clean bootJar --no-daemon
-
-      - name: Docker Hub 로그인
+      - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
 
-      - name: Docker 이미지 빌드
+      - name: Build and push Docker image
+        id: image
+        shell: bash
         run: |
-          docker build --platform linux/amd64 \
-            -t sungminju/weartrack:todayter-latest .
+          set -euo pipefail
 
-      - name: Docker 이미지 푸시
-        run: |
-          docker push sungminju/weartrack:todayter-latest
+          IMAGE_URI="${DOCKER_IMAGE}:todayter-${GITHUB_SHA}"
+          LATEST_URI="${DOCKER_IMAGE}:todayter-latest"
 
-      - name: GitHub Actions 실행자 IP 확인
-        id: runner_ip
-        run: |
-          echo "ipv4=$(curl -fsS https://checkip.amazonaws.com)" \
-            >> "$GITHUB_OUTPUT"
+          docker build \
+            --platform linux/amd64 \
+            -t "$IMAGE_URI" \
+            -t "$LATEST_URI" \
+            .
 
-      - name: AWS CLI 설정
+          docker push "$IMAGE_URI"
+          docker push "$LATEST_URI"
+
+          echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: SSH 포트 임시 허용
+      - name: Validate configuration
         env:
-          SECURITY_GROUP_ID: ${{ secrets.EC2_SECURITY_GROUP_ID }}
-          SSH_PORT: ${{ secrets.EC2_SSH_PORT }}
-          RUNNER_CIDR: ${{ steps.runner_ip.outputs.ipv4 }}/32
+          PROD_LISTENER_ARN: ${{ vars.PROD_LISTENER_ARN }}
+          TEST_LISTENER_ARN: ${{ vars.TEST_LISTENER_ARN }}
+          BLUE_TARGET_GROUP_ARN: ${{ vars.BLUE_TARGET_GROUP_ARN }}
+          GREEN_TARGET_GROUP_ARN: ${{ vars.GREEN_TARGET_GROUP_ARN }}
+          BLUE_INSTANCE_ID: ${{ vars.BLUE_INSTANCE_ID }}
+          GREEN_INSTANCE_ID: ${{ vars.GREEN_INSTANCE_ID }}
+        shell: bash
         run: |
-          aws ec2 authorize-security-group-ingress \
-            --group-id "$SECURITY_GROUP_ID" \
-            --protocol tcp \
-            --port "$SSH_PORT" \
-            --cidr "$RUNNER_CIDR"
+          set -euo pipefail
 
-      - name: SSH 설정
+          for name in \
+            PROD_LISTENER_ARN \
+            TEST_LISTENER_ARN \
+            BLUE_TARGET_GROUP_ARN \
+            GREEN_TARGET_GROUP_ARN \
+            BLUE_INSTANCE_ID \
+            GREEN_INSTANCE_ID
+          do
+            if [[ -z "${!name:-}" ]]; then
+              echo "Repository Variable '$name' is empty." >&2
+              exit 1
+            fi
+          done
+
+      - name: Find inactive environment
+        id: target
         env:
-          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-          SSH_PORT: ${{ secrets.EC2_SSH_PORT }}
-          SERVER_IP: ${{ secrets.LIVE_SERVER_IP }}
-          EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
+          PROD_LISTENER_ARN: ${{ vars.PROD_LISTENER_ARN }}
+          BLUE_TARGET_GROUP_ARN: ${{ vars.BLUE_TARGET_GROUP_ARN }}
+          GREEN_TARGET_GROUP_ARN: ${{ vars.GREEN_TARGET_GROUP_ARN }}
+          BLUE_INSTANCE_ID: ${{ vars.BLUE_INSTANCE_ID }}
+          GREEN_INSTANCE_ID: ${{ vars.GREEN_INSTANCE_ID }}
+        shell: bash
         run: |
-          mkdir -p ~/.ssh
+          set -euo pipefail
 
-          printf '%s\n' "$SSH_KEY" > ~/.ssh/todayter-key.pem
-          chmod 600 ~/.ssh/todayter-key.pem
+          ACTIVE_TARGET_GROUP=$(aws elbv2 describe-listeners \
+            --listener-arns "$PROD_LISTENER_ARN" \
+            --query 'Listeners[0].DefaultActions[0].TargetGroupArn' \
+            --output text)
 
-          ssh-keyscan -p "$SSH_PORT" -H "$SERVER_IP" \
-            >> ~/.ssh/known_hosts
+          if [[ "$ACTIVE_TARGET_GROUP" == "$BLUE_TARGET_GROUP_ARN" ]]; then
+            echo "active_color=blue" >> "$GITHUB_OUTPUT"
+            echo "target_color=green" >> "$GITHUB_OUTPUT"
+            echo "old_target_group_arn=$BLUE_TARGET_GROUP_ARN" \
+              >> "$GITHUB_OUTPUT"
+            echo "target_group_arn=$GREEN_TARGET_GROUP_ARN" \
+              >> "$GITHUB_OUTPUT"
+            echo "instance_id=$GREEN_INSTANCE_ID" \
+              >> "$GITHUB_OUTPUT"
 
-          {
-            echo "Host todayter-ec2"
-            echo "  HostName $SERVER_IP"
-            echo "  User $EC2_USERNAME"
-            echo "  Port $SSH_PORT"
-            echo "  IdentityFile ~/.ssh/todayter-key.pem"
-          } >> ~/.ssh/config
+          elif [[ "$ACTIVE_TARGET_GROUP" == "$GREEN_TARGET_GROUP_ARN" ]]; then
+            echo "active_color=green" >> "$GITHUB_OUTPUT"
+            echo "target_color=blue" >> "$GITHUB_OUTPUT"
+            echo "old_target_group_arn=$GREEN_TARGET_GROUP_ARN" \
+              >> "$GITHUB_OUTPUT"
+            echo "target_group_arn=$BLUE_TARGET_GROUP_ARN" \
+              >> "$GITHUB_OUTPUT"
+            echo "instance_id=$BLUE_INSTANCE_ID" \
+              >> "$GITHUB_OUTPUT"
 
-      - name: EC2 배포
-        run: |
-          ssh todayter-ec2 << 'EOF'
-            set -euo pipefail
+          else
+            echo "Production listener is not connected to Blue or Green." >&2
+            echo "Current target group: $ACTIVE_TARGET_GROUP" >&2
+            exit 1
+          fi
 
-            cd "$HOME/app"
-
-            docker compose pull todayter-app
-            docker compose up -d todayter-app
-            docker compose ps
-
-            docker image prune -f
-          EOF
-
-      - name: SSH 포트 임시 허용 제거
-        if: ${{ always() && steps.runner_ip.outputs.ipv4 != '' }}
+      - name: Point test listener to inactive environment
         env:
-          SECURITY_GROUP_ID: ${{ secrets.EC2_SECURITY_GROUP_ID }}
-          SSH_PORT: ${{ secrets.EC2_SSH_PORT }}
-          RUNNER_CIDR: ${{ steps.runner_ip.outputs.ipv4 }}/32
+          TEST_LISTENER_ARN: ${{ vars.TEST_LISTENER_ARN }}
+          TARGET_GROUP_ARN: ${{ steps.target.outputs.target_group_arn }}
+        shell: bash
         run: |
-          aws ec2 revoke-security-group-ingress \
-            --group-id "$SECURITY_GROUP_ID" \
-            --protocol tcp \
-            --port "$SSH_PORT" \
-            --cidr "$RUNNER_CIDR" || true
+          set -euo pipefail
+
+          aws elbv2 modify-listener \
+            --listener-arn "$TEST_LISTENER_ARN" \
+            --default-actions \
+            "Type=forward,TargetGroupArn=$TARGET_GROUP_ARN"
+
+      - name: Deregister inactive instance
+        env:
+          TARGET_GROUP_ARN: ${{ steps.target.outputs.target_group_arn }}
+          INSTANCE_ID: ${{ steps.target.outputs.instance_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          aws elbv2 deregister-targets \
+            --target-group-arn "$TARGET_GROUP_ARN" \
+            --targets "Id=$INSTANCE_ID,Port=$APP_PORT"
+
+          aws elbv2 wait target-deregistered \
+            --target-group-arn "$TARGET_GROUP_ARN" \
+            --targets "Id=$INSTANCE_ID,Port=$APP_PORT"
+
+      - name: Deploy image through SSM
+        env:
+          INSTANCE_ID: ${{ steps.target.outputs.instance_id }}
+          IMAGE_URI: ${{ steps.image.outputs.image_uri }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cat > deploy-remote.sh <<'REMOTE_SCRIPT'
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          IMAGE_URI="$1"
+          APP_DIR="/home/ubuntu/app"
+
+          cd "$APP_DIR"
+
+          test -f docker-compose.yml
+          test -f .env
+
+          printf 'DOCKER_IMAGE=%s\n' "$IMAGE_URI" > .deploy.env
+
+          docker compose \
+            --env-file .deploy.env \
+            pull todayter-app
+
+          docker compose \
+            --env-file .deploy.env \
+            up -d \
+            --force-recreate \
+            todayter-app
+
+          HEALTHY=false
+
+          for attempt in $(seq 1 36); do
+            if curl \
+              --fail \
+              --silent \
+              --show-error \
+              http://127.0.0.1:8080/actuator/health \
+              > /tmp/todayter-health.json
+            then
+              cat /tmp/todayter-health.json
+              HEALTHY=true
+              break
+            fi
+
+            sleep 5
+          done
+
+          if [[ "$HEALTHY" != "true" ]]; then
+            echo "Health check failed." >&2
+
+            docker compose \
+              --env-file .deploy.env \
+              logs \
+              --tail=100 \
+              todayter-app
+
+            exit 1
+          fi
+
+          ACTUAL_IMAGE=$(docker inspect \
+            --format '{{.Config.Image}}' \
+            todayter-server)
+
+          if [[ "$ACTUAL_IMAGE" != "$IMAGE_URI" ]]; then
+            echo "Running image does not match deployment image." >&2
+            echo "Expected: $IMAGE_URI" >&2
+            echo "Actual: $ACTUAL_IMAGE" >&2
+            exit 1
+          fi
+
+          docker compose \
+            --env-file .deploy.env \
+            ps
+
+          docker image prune -f
+          REMOTE_SCRIPT
+
+          SCRIPT_BASE64=$(base64 -w 0 deploy-remote.sh)
+
+          jq -nc \
+            --arg script "$SCRIPT_BASE64" \
+            --arg image "$IMAGE_URI" \
+            '{
+              commands: [
+                (
+                  "echo "
+                  + $script
+                  + " | base64 -d > /tmp/todayter-deploy.sh"
+                ),
+                "chmod 700 /tmp/todayter-deploy.sh",
+                (
+                  "/tmp/todayter-deploy.sh "
+                  + $image
+                )
+              ]
+            }' > ssm-parameters.json
+
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --comment "Deploy $IMAGE_URI" \
+            --parameters file://ssm-parameters.json \
+            --query 'Command.CommandId' \
+            --output text)
+
+          STATUS="Pending"
+
+          for attempt in $(seq 1 60); do
+            STATUS=$(aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" \
+              --instance-id "$INSTANCE_ID" \
+              --query 'Status' \
+              --output text \
+              2>/dev/null || echo "Pending")
+
+            case "$STATUS" in
+              Success)
+                break
+                ;;
+
+              Failed|Cancelled|TimedOut|Cancelling)
+                aws ssm get-command-invocation \
+                  --command-id "$COMMAND_ID" \
+                  --instance-id "$INSTANCE_ID" \
+                  --query \
+                    '{stdout:StandardOutputContent,stderr:StandardErrorContent}'
+
+                exit 1
+                ;;
+            esac
+
+            sleep 5
+          done
+
+          if [[ "$STATUS" != "Success" ]]; then
+            echo "SSM command timed out. Status: $STATUS" >&2
+            exit 1
+          fi
+
+          aws ssm get-command-invocation \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID" \
+            --query 'StandardOutputContent' \
+            --output text
+
+      - name: Register deployed instance
+        env:
+          TARGET_GROUP_ARN: ${{ steps.target.outputs.target_group_arn }}
+          INSTANCE_ID: ${{ steps.target.outputs.instance_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          aws elbv2 register-targets \
+            --target-group-arn "$TARGET_GROUP_ARN" \
+            --targets "Id=$INSTANCE_ID,Port=$APP_PORT"
+
+      - name: Wait until deployed instance is healthy
+        env:
+          TARGET_GROUP_ARN: ${{ steps.target.outputs.target_group_arn }}
+          INSTANCE_ID: ${{ steps.target.outputs.instance_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          aws elbv2 wait target-in-service \
+            --target-group-arn "$TARGET_GROUP_ARN" \
+            --targets "Id=$INSTANCE_ID,Port=$APP_PORT"
+
+      - name: Switch production traffic
+        env:
+          PROD_LISTENER_ARN: ${{ vars.PROD_LISTENER_ARN }}
+          TARGET_GROUP_ARN: ${{ steps.target.outputs.target_group_arn }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          aws elbv2 modify-listener \
+            --listener-arn "$PROD_LISTENER_ARN" \
+            --default-actions \
+            "Type=forward,TargetGroupArn=$TARGET_GROUP_ARN"
+
+      - name: Move test listener to previous environment
+        env:
+          TEST_LISTENER_ARN: ${{ vars.TEST_LISTENER_ARN }}
+          OLD_TARGET_GROUP_ARN: ${{ steps.target.outputs.old_target_group_arn }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          aws elbv2 modify-listener \
+            --listener-arn "$TEST_LISTENER_ARN" \
+            --default-actions \
+            "Type=forward,TargetGroupArn=$OLD_TARGET_GROUP_ARN"
+
+      - name: Deployment result
+        run: |
+          echo \
+            "${{ steps.target.outputs.active_color }} -> \
+            ${{ steps.target.outputs.target_color }} deployment completed"
+
+          echo "Image: ${{ steps.image.outputs.image_uri }}"
