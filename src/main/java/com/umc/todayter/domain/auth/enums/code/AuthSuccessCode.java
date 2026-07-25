@@ -9,7 +9,8 @@ import org.springframework.http.HttpStatus;
 @AllArgsConstructor
 public enum AuthSuccessCode implements BaseCode {
 
-    DEV_TOKEN_ISSUED(HttpStatus.OK, "COMMON200", "개발용 토큰이 발급되었습니다.")
+    DEV_TOKEN_ISSUED(HttpStatus.OK, "COMMON200", "개발용 토큰이 발급되었습니다."),
+    KAKAO_LOGIN_SUCCESS(HttpStatus.OK, "AUTH200", "카카오 로그인에 성공했습니다.")
     ;
 
     private final HttpStatus httpStatus;
