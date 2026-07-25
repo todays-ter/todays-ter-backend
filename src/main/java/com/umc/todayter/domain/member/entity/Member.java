@@ -12,10 +12,18 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "members")
+@Table(
+        name = "members",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_members_email",
+                        columnNames = "email"
+                )
+        }
+)
 public class Member extends BaseEntity {
 
-    @Column(length = 50)
+    @Column(length = 100)
     private String email;
 
     @Column(length = 50)
