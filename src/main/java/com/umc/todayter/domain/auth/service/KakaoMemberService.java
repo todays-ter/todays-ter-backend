@@ -2,10 +2,8 @@ package com.umc.todayter.domain.auth.service;
 
 import com.umc.todayter.domain.auth.dto.KakaoUserInfo;
 import com.umc.todayter.domain.auth.dto.SocialMemberResult;
-import com.umc.todayter.domain.auth.exception.AuthErrorCode;
 import com.umc.todayter.domain.member.entity.Member;
 import com.umc.todayter.domain.member.entity.SocialAccount;
-import com.umc.todayter.domain.member.enums.MemberStatus;
 import com.umc.todayter.domain.member.enums.SocialProvider;
 import com.umc.todayter.domain.member.exception.MemberErrorCode;
 import com.umc.todayter.domain.member.repository.MemberRepository;
@@ -58,8 +56,6 @@ public class KakaoMemberService {
 
     // 신규 사용자와 해당 사용자의 카카오 소셜 계정을 생성함
     private SocialMemberResult createMemberAndSocialAccount(KakaoUserInfo userInfo) {
-        validateEmailNotUsedByAnotherAccount(userInfo.email());
-
         String nickname = StringUtils.hasText(userInfo.nickname())
                 ? userInfo.nickname()
                 : DEFAULT_NICKNAME;
@@ -82,24 +78,5 @@ public class KakaoMemberService {
         socialAccountRepository.save(socialAccount);
 
         return SocialMemberResult.created(member);
-    }
-
-    /**
-     * 카카오에서 이메일이 제공된 경우,
-     * 해당 이메일을 다른 사용자가 사용 중인지 확인
-     */
-    private void validateEmailNotUsedByAnotherAccount(String email) {
-        // 이메일은 선택 정보이므로 값이 없으면 중복 검사를 수행하지 않음
-        if (!StringUtils.hasText(email)) {
-            return;
-        }
-
-        boolean exists = memberRepository
-                .findByEmailAndStatus(email, MemberStatus.ACTIVE)
-                .isPresent();
-
-        if (exists) {
-            throw new CustomException(AuthErrorCode.SOCIAL_EMAIL_ALREADY_USE);
-        }
     }
 }
