@@ -1,16 +1,24 @@
 package com.umc.todayter.domain.auth.client.kakao.dto;
 
-import com.fasterxml.jackson.databind.PropertyNamingStrategies;
-import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-// 카카오 응답은 snake_case로 옴
-@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record KakaoTokenResponse(
+        @JsonProperty("token_type")
         String tokenType,
+
+        @JsonProperty("access_token")
         String accessToken,
+
+        @JsonProperty("expires_in")
         Integer expiresIn,
+
+        @JsonProperty("refresh_token")
         String refreshToken, // 카카오 API 토큰 갱신용
+
+        @JsonProperty("refresh_token_expires_in")
         Integer refreshTokenExpiresIn,
+
+        @JsonProperty("scope")
         String scope
 ) {
 }
