@@ -33,6 +33,10 @@ public class KakaoOAuthClient {
                 properties.clientSecret()
         );
 
+        if (response == null || response.accessToken() == null || response.accessToken().isBlank()) {
+            throw new IllegalStateException("카카오 Access Token 응답이 비어 있습니다.");
+        }
+
         return response.accessToken();
     }
 
