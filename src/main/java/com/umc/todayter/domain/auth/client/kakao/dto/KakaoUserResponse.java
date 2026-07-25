@@ -9,7 +9,6 @@ public record KakaoUserResponse(
         @JsonProperty("kakao_account")
         KakaoAccount kakaoAccount
 ) {
-
     public record KakaoAccount(
             @JsonProperty("profile_needs_agreement")
             Boolean profileNeedsAgreement,
