@@ -47,7 +47,7 @@ public class KakaoOAuthClient {
             );
 
             if (response == null || !StringUtils.hasText(response.accessToken())) {
-                throw new CustomException(AuthErrorCode.KAKAO_TOKEN_ISSUE_FAILED);
+                throw new CustomException(AuthErrorCode.KAKAO_TOKEN_API_FAILED);
             }
 
             return response.accessToken();
@@ -58,7 +58,11 @@ public class KakaoOAuthClient {
                     e.contentUTF8()
             );
 
-            throw new CustomException(AuthErrorCode.KAKAO_TOKEN_ISSUE_FAILED);
+            if (e.status() == 400) {
+                throw new CustomException(AuthErrorCode.KAKAO_AUTHORIZATION_CODE_INVALID);
+            }
+
+            throw new CustomException(AuthErrorCode.KAKAO_TOKEN_API_FAILED);
         }
     }
 
@@ -83,8 +87,6 @@ public class KakaoOAuthClient {
                     email,
                     nickname
             );
-        } catch (CustomException e) {
-            throw e;
         } catch (FeignException e) {
             log.warn(
                     "Kakao user info request failed. status={}, response={}",
