@@ -10,6 +10,8 @@ import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
 
 /**
@@ -38,13 +40,18 @@ public class KakaoOAuthClient {
 
     private String getAccessToken(String authorizationCode) {
         try {
-            KakaoTokenResponse response = kakaoAuthClient.issueToken(
-                    AUTHORIZATION_CODE,
-                    properties.clientId(),
-                    properties.redirectUri(),
-                    authorizationCode,
-                    properties.clientSecret()
-            );
+            MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+
+            form.add("grant_type", AUTHORIZATION_CODE);
+            form.add("client_id", properties.clientId());
+            form.add("redirect_uri", properties.redirectUri());
+            form.add("code", authorizationCode);
+
+            if (StringUtils.hasText(properties.clientSecret())) {
+                form.add("client_secret", properties.clientSecret());
+            }
+
+            KakaoTokenResponse response = kakaoAuthClient.issueToken(form);
 
             if (response == null || !StringUtils.hasText(response.accessToken())) {
                 throw new CustomException(AuthErrorCode.KAKAO_TOKEN_API_FAILED);
