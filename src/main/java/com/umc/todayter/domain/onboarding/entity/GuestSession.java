@@ -59,4 +59,11 @@ public class GuestSession extends BaseEntity {
     public void expire() {
         this.status = GuestSessionStatus.EXPIRED;
     }
+
+    // 비회원 세션을 회원 계정으로 전환
+    public void convertTo(Long memberId) {
+        this.status = GuestSessionStatus.CONVERTED;
+        this.convertedMemberId = memberId;
+        this.convertedAt = LocalDateTime.now();
+    }
 }
