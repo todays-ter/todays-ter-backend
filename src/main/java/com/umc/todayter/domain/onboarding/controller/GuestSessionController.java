@@ -5,6 +5,9 @@ import com.umc.todayter.domain.onboarding.service.GuestSessionService;
 import com.umc.todayter.global.apiPayload.response.ApiResponse;
 import com.umc.todayter.global.apiPayload.response.SuccessCode;
 import com.umc.todayter.global.util.GuestCookieUtil;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -14,6 +17,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@Tag(name = "Guest Session", description = "비회원 세션 API")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/guest-sessions")
@@ -22,6 +26,11 @@ public class GuestSessionController {
     private final GuestSessionService guestSessionService;
     private final GuestCookieUtil guestCookieUtil;
 
+    @Operation(
+            summary = "비회원 세션 생성·조회",
+            description = "비회원 세션을 생성하거나 기존 세션을 조회합니다."
+    )
+    @SecurityRequirements
     @PostMapping
     public ResponseEntity<ApiResponse<GuestSessionResponse>> initialize(
             @CookieValue(
