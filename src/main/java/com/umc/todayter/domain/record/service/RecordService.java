@@ -19,6 +19,8 @@ import com.umc.todayter.global.security.SecurityUtil;
 import com.umc.todayter.global.util.S3Uploader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,7 +28,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -102,6 +106,30 @@ public class RecordService {
 
         // 방문 인증 기능이 아직 없어 검증된 방문 시각을 알 수 없으므로 스텁으로 null을 반환한다.
         return RecordResponse.from(visitRecord, images, null);
+    }
+
+    public Page<RecordResponse> getMyRecords(RecordType type, Pageable pageable) {
+        Long memberId = SecurityUtil.getCurrentMemberId();
+
+        Page<VisitRecord> visitRecords = (type == null)
+                ? visitRecordRepository.findAllByMemberId(memberId, pageable)
+                : visitRecordRepository.findAllByMemberIdAndType(memberId, type, pageable);
+
+        List<Long> recordIds = visitRecords.getContent().stream()
+                .map(VisitRecord::getId)
+                .toList();
+
+        Map<Long, List<VisitRecordImage>> imagesByRecordId = visitRecordImageRepository
+                .findByVisitRecordIdInOrderBySortOrderAsc(recordIds)
+                .stream()
+                .collect(Collectors.groupingBy(image -> image.getVisitRecord().getId()));
+
+        // 방문 인증 기능이 아직 없어 검증된 방문 시각을 알 수 없으므로 스텁으로 null을 반환한다.
+        return visitRecords.map(visitRecord -> RecordResponse.from(
+                visitRecord,
+                imagesByRecordId.getOrDefault(visitRecord.getId(), List.of()),
+                null
+        ));
     }
 
     private Member getCurrentMember() {

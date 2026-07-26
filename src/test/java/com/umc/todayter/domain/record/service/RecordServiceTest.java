@@ -330,6 +330,88 @@ class RecordServiceTest {
         org.mockito.Mockito.verify(s3Uploader).delete("https://s3/b.jpg");
     }
 
+    @Test
+    void getMyRecords_withoutTypeFilter_returnsAllRecordsOfCurrentMember() {
+        Member member = member(1L);
+        Place place = place();
+        VisitRecord record1 = recordWithId(10L, member, place, RecordType.RECORD);
+        VisitRecord record2 = recordWithId(11L, member, place, RecordType.REVIEW);
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        org.springframework.data.domain.Page<VisitRecord> page =
+                new org.springframework.data.domain.PageImpl<>(List.of(record1, record2), pageable, 2);
+
+        when(visitRecordRepository.findAllByMemberId(1L, pageable)).thenReturn(page);
+        when(visitRecordImageRepository.findByVisitRecordIdInOrderBySortOrderAsc(List.of(10L, 11L)))
+                .thenReturn(List.of());
+
+        org.springframework.data.domain.Page<RecordResponse> result = recordService.getMyRecords(null, pageable);
+
+        assertThat(result.getTotalElements()).isEqualTo(2);
+        assertThat(result.getContent()).extracting(RecordResponse::placeId)
+                .containsExactly(place.getId(), place.getId());
+    }
+
+    @Test
+    void getMyRecords_withTypeFilter_delegatesToFilteredRepositoryMethod() {
+        Member member = member(1L);
+        Place place = place();
+        VisitRecord review = recordWithId(20L, member, place, RecordType.REVIEW);
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        org.springframework.data.domain.Page<VisitRecord> page =
+                new org.springframework.data.domain.PageImpl<>(List.of(review), pageable, 1);
+
+        when(visitRecordRepository.findAllByMemberIdAndType(1L, RecordType.REVIEW, pageable)).thenReturn(page);
+        when(visitRecordImageRepository.findByVisitRecordIdInOrderBySortOrderAsc(List.of(20L)))
+                .thenReturn(List.of());
+
+        org.springframework.data.domain.Page<RecordResponse> result = recordService.getMyRecords(RecordType.REVIEW, pageable);
+
+        assertThat(result.getContent()).hasSize(1);
+        org.mockito.Mockito.verify(visitRecordRepository, org.mockito.Mockito.never())
+                .findAllByMemberId(org.mockito.ArgumentMatchers.anyLong(), any());
+    }
+
+    @Test
+    void getMyRecords_returnsEmptyPageWhenMemberHasNoRecords() {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        org.springframework.data.domain.Page<VisitRecord> emptyPage =
+                new org.springframework.data.domain.PageImpl<>(List.of(), pageable, 0);
+
+        when(visitRecordRepository.findAllByMemberId(1L, pageable)).thenReturn(emptyPage);
+        when(visitRecordImageRepository.findByVisitRecordIdInOrderBySortOrderAsc(List.of()))
+                .thenReturn(List.of());
+
+        org.springframework.data.domain.Page<RecordResponse> result = recordService.getMyRecords(null, pageable);
+
+        assertThat(result.getContent()).isEmpty();
+        assertThat(result.getTotalElements()).isEqualTo(0);
+    }
+
+    @Test
+    void getMyRecords_usesCurrentAuthenticatedMemberIdOnly() {
+        // setUpAuthentication()이 memberId=1L로 인증을 설정하므로,
+        // 다른 회원(2L)의 기록은 조회 대상이 아니며 repository는 항상 1L로만 호출되어야 한다.
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        org.springframework.data.domain.Page<VisitRecord> page =
+                new org.springframework.data.domain.PageImpl<>(List.of(), pageable, 0);
+
+        when(visitRecordRepository.findAllByMemberId(1L, pageable)).thenReturn(page);
+        when(visitRecordImageRepository.findByVisitRecordIdInOrderBySortOrderAsc(List.of()))
+                .thenReturn(List.of());
+
+        recordService.getMyRecords(null, pageable);
+
+        org.mockito.Mockito.verify(visitRecordRepository).findAllByMemberId(1L, pageable);
+        org.mockito.Mockito.verify(visitRecordRepository, org.mockito.Mockito.never())
+                .findAllByMemberId(org.mockito.ArgumentMatchers.eq(2L), any());
+    }
+
+    private VisitRecord recordWithId(Long id, Member member, Place place, RecordType type) {
+        VisitRecord record = VisitRecord.create(member, place, type, 4, "내용");
+        ReflectionTestUtils.setField(record, "id", id);
+        return record;
+    }
+
     private MultipartFile jpg(String filename) {
         return new MockMultipartFile("images", filename, "image/jpeg", new byte[]{1});
     }

@@ -14,6 +14,8 @@ import org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration
 import org.springframework.boot.security.autoconfigure.web.servlet.SecurityFilterAutoConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -22,7 +24,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -180,5 +185,49 @@ class RecordControllerTest {
                         .contentType("application/json")
                         .content(body))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getMyRecords_withoutAuthorizationHeader_returnsUnauthorized() throws Exception {
+        mockMvc.perform(get("/records/me"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.isSuccess").value(false))
+                .andExpect(jsonPath("$.code").value("COMMON401"));
+    }
+
+    @Test
+    void getMyRecords_withValidToken_returnsPagedResult() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+
+        RecordResponse record = new RecordResponse(
+                1L, RecordType.RECORD, 1L, "북촌한옥마을", null,
+                4, "좋았어요", List.of(new ImageInfo(101L, "https://img1")), LocalDateTime.now()
+        );
+        when(recordService.getMyRecords(isNull(), any()))
+                .thenReturn(new PageImpl<>(List.of(record), PageRequest.of(0, 10), 1));
+
+        mockMvc.perform(get("/records/me")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isSuccess").value(true))
+                .andExpect(jsonPath("$.code").value("COMMON200"))
+                .andExpect(jsonPath("$.result.content[0].recordId").value(1))
+                .andExpect(jsonPath("$.result.content[0].placeId").value(1))
+                .andExpect(jsonPath("$.result.totalElements").value(1));
+    }
+
+    @Test
+    void getMyRecords_withTypeFilter_passesTypeToService() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(recordService.getMyRecords(eq(RecordType.REVIEW), any()))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
+
+        mockMvc.perform(get("/records/me")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .param("type", "REVIEW"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.content").isEmpty());
     }
 }

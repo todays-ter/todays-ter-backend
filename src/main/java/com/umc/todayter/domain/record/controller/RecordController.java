@@ -4,6 +4,7 @@ import com.umc.todayter.domain.record.dto.request.RecordCreateRequest;
 import com.umc.todayter.domain.record.dto.response.ImageInfo;
 import com.umc.todayter.domain.record.dto.response.ImageUploadResponse;
 import com.umc.todayter.domain.record.dto.response.RecordResponse;
+import com.umc.todayter.domain.record.enums.RecordType;
 import com.umc.todayter.domain.record.service.RecordService;
 import com.umc.todayter.global.apiPayload.response.ApiResponse;
 import com.umc.todayter.global.apiPayload.response.SuccessCode;
@@ -11,9 +12,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -53,5 +57,18 @@ public class RecordController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(ApiResponse.onSuccess(result, SuccessCode.CREATED));
+    }
+
+    @Operation(summary = "저장한 터/다녀온 터 목록 조회", description = "로그인한 회원 본인이 작성한 기록/후기 목록을 조회합니다. type으로 RECORD/REVIEW를 필터링할 수 있습니다.")
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<Page<RecordResponse>>> getMyRecords(
+            @RequestParam(required = false) RecordType type,
+            Pageable pageable
+    ) {
+        Page<RecordResponse> result = recordService.getMyRecords(type, pageable);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.onSuccess(result, SuccessCode.OK));
     }
 }
