@@ -96,4 +96,10 @@ public class Onboarding extends BaseEntity {
         this.concernTypes = new ArrayList<>(concernTypes);
         this.onboardingStep = OnboardingStep.COMPLETED;
     }
+
+    // 비회원 온보딩 데이터를 회원 소유로 전환
+    public void transferToMember(Long memberId) {
+        this.memberId = memberId;
+        this.guestSession = null; // 중요
+    }
 }

@@ -7,4 +7,6 @@ import java.util.Optional;
 
 public interface OnboardingRepository extends JpaRepository<Onboarding, Long> {
     Optional<Onboarding> findByGuestSessionId(Long guestSessionId);
+    Optional<Onboarding> findByMemberId(Long memberId);
+    boolean existsByMemberId(Long memberId);
 }
