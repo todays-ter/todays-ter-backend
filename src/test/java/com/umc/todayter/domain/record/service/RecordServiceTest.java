@@ -347,21 +347,28 @@ class RecordServiceTest {
     }
 
     private Place place() {
-        Place place = Place.create(
-                "북촌한옥마을",
-                "한옥/골목",
-                "설명",
-                "서울특별시 종로구",
-                RegionCode.SEOUL,
-                37.5826,
-                126.983,
-                ElementType.EARTH,
-                ThemeType.RELATIONSHIP,
-                0.0,
-                0,
-                false,
-                true
-        );
+        Place place = Place.builder()
+                .name("북촌한옥마을")
+                .summary("한옥/골목")
+                .description("설명")
+                .address("서울특별시 종로구")
+                .regionCode(RegionCode.SEOUL)
+                .latitude(37.5826)
+                .longitude(126.983)
+                .elementType(ElementType.EARTH)
+                .themeType(ThemeType.RELATIONSHIP)
+                .averageRating(0.0)
+                .reviewCount(0)
+                .editorPick(false)
+                .active(true)
+                .terrainType("한옥/골목")
+                .loveScore(0)
+                .relationshipScore(0)
+                .careerScore(0)
+                .studyScore(0)
+                .restScore(0)
+                .transitionScore(0)
+                .build();
         ReflectionTestUtils.setField(place, "id", 1L);
         return place;
     }
