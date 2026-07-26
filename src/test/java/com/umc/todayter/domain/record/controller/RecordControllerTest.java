@@ -1,5 +1,6 @@
 package com.umc.todayter.domain.record.controller;
 
+import com.umc.todayter.domain.record.dto.response.ImageInfo;
 import com.umc.todayter.domain.record.dto.response.RecordResponse;
 import com.umc.todayter.domain.record.exception.RecordErrorCode;
 import com.umc.todayter.domain.record.service.RecordService;
@@ -16,7 +17,7 @@ import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -50,7 +51,7 @@ class RecordControllerTest {
     @Test
     void createRecord_withoutAuthorizationHeader_returnsUnauthorized() throws Exception {
         String body = """
-                {"placeId":1,"content":"좋았어요","visitedAt":"2026-07-01","imageUrls":[]}
+                {"placeId":1,"type":"RECORD","rating":4,"content":"좋았어요","imageIds":[]}
                 """;
 
         mockMvc.perform(post("/records")
@@ -66,11 +67,12 @@ class RecordControllerTest {
         when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
         when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
         when(recordService.createRecord(any())).thenReturn(new RecordResponse(
-                1L, 1L, "북촌한옥마을", LocalDate.of(2026, 7, 1), "좋았어요", List.of("https://img1")
+                1L, 1L, "북촌한옥마을", LocalDateTime.of(2026, 7, 1, 10, 0),
+                4, "좋았어요", List.of(new ImageInfo(101L, "https://img1")), LocalDateTime.now()
         ));
 
         String body = """
-                {"placeId":1,"content":"좋았어요","visitedAt":"2026-07-01","imageUrls":["https://img1"]}
+                {"placeId":1,"type":"RECORD","rating":4,"content":"좋았어요","imageIds":[101]}
                 """;
 
         mockMvc.perform(post("/records")
@@ -81,7 +83,8 @@ class RecordControllerTest {
                 .andExpect(jsonPath("$.isSuccess").value(true))
                 .andExpect(jsonPath("$.code").value("COMMON201"))
                 .andExpect(jsonPath("$.result.placeId").value(1))
-                .andExpect(jsonPath("$.result.imageUrls[0]").value("https://img1"));
+                .andExpect(jsonPath("$.result.rating").value(4))
+                .andExpect(jsonPath("$.result.images[0].imageId").value(101));
     }
 
     @Test
@@ -91,7 +94,7 @@ class RecordControllerTest {
         when(recordService.createRecord(any())).thenThrow(new CustomException(RecordErrorCode.PLACE_NOT_FOUND));
 
         String body = """
-                {"placeId":999,"content":"좋았어요","visitedAt":"2026-07-01","imageUrls":[]}
+                {"placeId":999,"type":"REVIEW","rating":5,"content":"좋았어요","imageIds":[]}
                 """;
 
         mockMvc.perform(post("/records")
@@ -104,12 +107,47 @@ class RecordControllerTest {
     }
 
     @Test
-    void createRecord_withInvalidBody_returnsBadRequest() throws Exception {
+    void createRecord_withValidToken_returnsConflictWhenReviewAlreadyExists() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(recordService.createRecord(any())).thenThrow(new CustomException(RecordErrorCode.REVIEW_ALREADY_EXISTS));
+
+        String body = """
+                {"placeId":1,"type":"REVIEW","rating":5,"content":"좋았어요","imageIds":[]}
+                """;
+
+        mockMvc.perform(post("/records")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.isSuccess").value(false))
+                .andExpect(jsonPath("$.code").value("RECORD409_1"));
+    }
+
+    @Test
+    void createRecord_withInvalidRating_returnsBadRequest() throws Exception {
         when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
         when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
 
         String body = """
-                {"placeId":null,"content":"","visitedAt":"2099-01-01","imageUrls":[]}
+                {"placeId":1,"type":"RECORD","rating":6,"content":"내용","imageIds":[]}
+                """;
+
+        mockMvc.perform(post("/records")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createRecord_withMissingRequiredFields_returnsBadRequest() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+
+        String body = """
+                {"placeId":null,"type":null,"rating":null,"content":"","imageIds":[]}
                 """;
 
         mockMvc.perform(post("/records")

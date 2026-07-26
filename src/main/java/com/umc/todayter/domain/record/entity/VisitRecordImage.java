@@ -1,5 +1,6 @@
 package com.umc.todayter.domain.record.entity;
 
+import com.umc.todayter.domain.member.entity.Member;
 import com.umc.todayter.global.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -20,8 +21,16 @@ public class VisitRecordImage extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(
-            name = "visit_record_id",
+            name = "member_id",
             nullable = false,
+            foreignKey = @ForeignKey(name = "fk_visit_record_images_member")
+    )
+    private Member member;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(
+            name = "visit_record_id",
+            nullable = true,
             foreignKey = @ForeignKey(name = "fk_visit_record_images_visit_record")
     )
     private VisitRecord visitRecord;
@@ -32,13 +41,17 @@ public class VisitRecordImage extends BaseEntity {
     @Column(name = "sort_order", nullable = false)
     private Integer sortOrder;
 
-    private VisitRecordImage(VisitRecord visitRecord, String imageUrl, Integer sortOrder) {
-        this.visitRecord = visitRecord;
+    private VisitRecordImage(Member member, String imageUrl, Integer sortOrder) {
+        this.member = member;
         this.imageUrl = imageUrl;
         this.sortOrder = sortOrder;
     }
 
-    public static VisitRecordImage create(VisitRecord visitRecord, String imageUrl, Integer sortOrder) {
-        return new VisitRecordImage(visitRecord, imageUrl, sortOrder);
+    public static VisitRecordImage create(Member member, String imageUrl, Integer sortOrder) {
+        return new VisitRecordImage(member, imageUrl, sortOrder);
+    }
+
+    public void attachToRecord(VisitRecord visitRecord) {
+        this.visitRecord = visitRecord;
     }
 }

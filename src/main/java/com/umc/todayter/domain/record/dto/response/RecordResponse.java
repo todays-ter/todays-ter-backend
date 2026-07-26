@@ -1,35 +1,35 @@
 package com.umc.todayter.domain.record.dto.response;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import com.umc.todayter.domain.record.entity.VisitRecord;
 import com.umc.todayter.domain.record.entity.VisitRecordImage;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public record RecordResponse(
-        Long id,
+        Long recordId,
         Long placeId,
         String placeName,
-
-        @JsonFormat(pattern = "yyyy-MM-dd")
-        LocalDate visitedAt,
-
+        LocalDateTime visitVerifiedAt,
+        Integer rating,
         String content,
-        List<String> imageUrls
+        List<ImageInfo> images,
+        LocalDateTime createdAt
 ) {
-    public static RecordResponse from(VisitRecord visitRecord, List<VisitRecordImage> images) {
-        List<String> imageUrls = images.stream()
-                .map(VisitRecordImage::getImageUrl)
+    public static RecordResponse from(VisitRecord visitRecord, List<VisitRecordImage> images, LocalDateTime visitVerifiedAt) {
+        List<ImageInfo> imageInfos = images.stream()
+                .map(ImageInfo::from)
                 .toList();
 
         return new RecordResponse(
                 visitRecord.getId(),
                 visitRecord.getPlace().getId(),
                 visitRecord.getPlace().getName(),
-                visitRecord.getVisitedAt(),
+                visitVerifiedAt,
+                visitRecord.getRating(),
                 visitRecord.getContent(),
-                imageUrls
+                imageInfos,
+                visitRecord.getCreatedAt()
         );
     }
 }

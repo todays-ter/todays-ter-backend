@@ -2,9 +2,12 @@ package com.umc.todayter.domain.record.entity;
 
 import com.umc.todayter.domain.member.entity.Member;
 import com.umc.todayter.domain.place.entity.Place;
+import com.umc.todayter.domain.record.enums.RecordType;
 import com.umc.todayter.global.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.ForeignKey;
 import jakarta.persistence.JoinColumn;
@@ -13,8 +16,6 @@ import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDate;
 
 @Entity
 @Getter
@@ -38,20 +39,25 @@ public class VisitRecord extends BaseEntity {
     )
     private Place place;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private RecordType type;
+
+    @Column(nullable = false)
+    private Integer rating;
+
     @Column(nullable = false, columnDefinition = "text")
     private String content;
 
-    @Column(name = "visited_at", nullable = false)
-    private LocalDate visitedAt;
-
-    private VisitRecord(Member member, Place place, String content, LocalDate visitedAt) {
+    private VisitRecord(Member member, Place place, RecordType type, Integer rating, String content) {
         this.member = member;
         this.place = place;
+        this.type = type;
+        this.rating = rating;
         this.content = content;
-        this.visitedAt = visitedAt;
     }
 
-    public static VisitRecord create(Member member, Place place, String content, LocalDate visitedAt) {
-        return new VisitRecord(member, place, content, visitedAt);
+    public static VisitRecord create(Member member, Place place, RecordType type, Integer rating, String content) {
+        return new VisitRecord(member, place, type, rating, content);
     }
 }
