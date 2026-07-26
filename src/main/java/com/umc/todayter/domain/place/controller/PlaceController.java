@@ -1,0 +1,61 @@
+package com.umc.todayter.domain.place.controller;
+
+import com.umc.todayter.domain.place.dto.response.ExploreFiltersResponse;
+import com.umc.todayter.domain.place.service.PlaceService;
+import com.umc.todayter.domain.place.service.PlaceThumbnailService;
+import com.umc.todayter.global.apiPayload.response.ApiResponse;
+import com.umc.todayter.global.apiPayload.response.SuccessCode;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.net.URI;
+
+@Tag(name = "Place", description = "장소 API")
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/places")
+public class PlaceController {
+
+    private final PlaceService placeService;
+    private final PlaceThumbnailService placeThumbnailService;
+
+    @Operation(summary = "탐색 필터 조회", description = "지역, 테마, 오행 탐색 필터를 조회합니다.")
+    @SecurityRequirements
+    @GetMapping("/explore-filters")
+    public ResponseEntity<ApiResponse<ExploreFiltersResponse>> getExploreFilters() {
+        ExploreFiltersResponse result = placeService.getExploreFilters();
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.onSuccess(result, SuccessCode.OK));
+    }
+
+    @Operation(summary = "장소 대표 이미지 조회", description = "Google Places 기반 장소 대표 이미지 연동")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "302", description = "Redirect to representative image URI"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid placeId format"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Active place, Google Place ID, or representative photo not found"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Google Places integration failure")
+    })
+    @SecurityRequirements
+    @GetMapping("/{placeId}/thumbnail")
+    public ResponseEntity<Void> getThumbnail(@PathVariable Long placeId) {
+        URI photoUri = placeThumbnailService.getThumbnailUri(placeId);
+
+        return ResponseEntity
+                .status(HttpStatus.FOUND)
+                .location(photoUri)
+                .cacheControl(CacheControl.noStore())
+                .build();
+    }
+}

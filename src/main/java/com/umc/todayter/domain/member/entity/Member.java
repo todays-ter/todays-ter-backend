@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @Table(name = "members")
 public class Member extends BaseEntity {
 
-    @Column(length = 50)
+    @Column(length = 100)
     private String email;
 
     @Column(length = 50)
