@@ -34,6 +34,14 @@ google:
     thumbnail-max-width: 800
     connect-timeout: 3s
     read-timeout: 5s
+    
+kakao:
+  oauth:
+    client-id: ${KAKAO_REST_API_KEY}
+    client-secret: ${KAKAO_CLIENT_SECRET}
+    redirect-uri: ${KAKAO_REDIRECT_URI}
+    auth-base-url: https://kauth.kakao.com
+    api-base-url: https://kapi.kakao.com
 
 logging:
   level:

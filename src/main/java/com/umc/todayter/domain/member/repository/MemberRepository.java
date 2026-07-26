@@ -9,5 +9,5 @@ import java.util.Optional;
 public interface MemberRepository extends JpaRepository<Member, Long> {
 
     Optional<Member> findByIdAndStatus(Long memberId, MemberStatus status);
-    Optional<Member> findByEmailAndStatus(String email, MemberStatus status);
+    Optional<Member> findFirstByEmailAndStatusOrderByIdAsc(String email, MemberStatus status);
 }
