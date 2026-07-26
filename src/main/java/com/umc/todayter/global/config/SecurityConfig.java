@@ -92,6 +92,7 @@ public class SecurityConfig {
                                 "/actuator/health",
                                 "/api/guest-sessions/**",
                                 "/api/guest-onboarding/**",
+                                "/fortune-reports/**",
                                 "/auth/dev/**",
                                 "/auth/kakao/login",
                                 "/auth/reissue"

@@ -5,6 +5,7 @@ import com.umc.todayter.domain.auth.dto.KakaoLoginResult;
 import com.umc.todayter.domain.auth.dto.KakaoUserInfo;
 import com.umc.todayter.domain.auth.dto.SocialMemberResult;
 import com.umc.todayter.domain.member.entity.Member;
+import com.umc.todayter.domain.fortune.service.GuestFortuneReportTransferService;
 import com.umc.todayter.domain.onboarding.entity.Onboarding;
 import com.umc.todayter.domain.onboarding.enums.OnboardingStep;
 import com.umc.todayter.domain.onboarding.repository.OnboardingRepository;
@@ -22,6 +23,7 @@ public class KakaoAuthService {
     private final KakaoMemberService kakaoMemberService;
     private final AuthTokenService authTokenService;
     private final GuestOnboardingTransferService guestOnboardingTransferService;
+    private final GuestFortuneReportTransferService guestFortuneReportTransferService;
     private final OnboardingRepository onboardingRepository;
 
     @Transactional
@@ -32,6 +34,7 @@ public class KakaoAuthService {
 
         Member member = memberResult.member();
 
+        guestFortuneReportTransferService.transferIfPresent(guestId, member);
         guestOnboardingTransferService.transferIfPresent(guestId, member);
 
         AuthTokenResult tokenResult = authTokenService.issueTokens(member);
