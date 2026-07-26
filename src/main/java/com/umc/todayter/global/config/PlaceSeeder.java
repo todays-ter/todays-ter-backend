@@ -6,9 +6,11 @@ import com.umc.todayter.domain.place.enums.RegionCode;
 import com.umc.todayter.domain.place.enums.ThemeType;
 import com.umc.todayter.domain.place.repository.PlaceRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 
 import java.io.BufferedReader;
@@ -19,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class PlaceSeeder implements ApplicationRunner {
@@ -35,7 +38,14 @@ public class PlaceSeeder implements ApplicationRunner {
         }
 
         List<Place> places = readSeedPlaces();
-        placeRepository.saveAll(places);
+        try {
+            placeRepository.saveAll(places);
+        } catch (DataIntegrityViolationException e) {
+            // 여러 인스턴스가 동시에 기동해 count() == 0을 함께 통과한 경우 발생.
+            // name unique 제약이 이 경합을 막아주므로, 먼저 커밋한 인스턴스만 시딩에 성공하고
+            // 나머지는 여기서 조용히 스킵한다 (앱 기동 자체를 실패시키지 않음).
+            log.warn("장소 초기 데이터가 다른 인스턴스에 의해 이미 시딩되어 스킵합니다.", e);
+        }
     }
 
     private List<Place> readSeedPlaces() throws IOException {

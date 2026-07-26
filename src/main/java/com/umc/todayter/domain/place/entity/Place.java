@@ -26,7 +26,7 @@ import lombok.NoArgsConstructor;
 })
 public class Place extends BaseEntity {
 
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     private String name;
 
     @Column(nullable = false)
