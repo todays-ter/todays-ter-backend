@@ -67,6 +67,9 @@ public class Place extends BaseEntity {
     @Column(name = "is_active", nullable = false)
     private Boolean active;
 
+    @Column(name = "google_place_id", nullable = true, unique = true)
+    private String googlePlaceId;
+
     private Place(
             String name,
             String summary,

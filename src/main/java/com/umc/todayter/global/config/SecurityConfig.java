@@ -76,6 +76,11 @@ public class SecurityConfig {
                 // URL 접근 권한 설정
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/places/explore-filters",
+                                "/places/*/thumbnail"
+                        ).permitAll()
 
                         // 추가
                         .requestMatchers(
@@ -84,7 +89,6 @@ public class SecurityConfig {
                                 "/actuator/health",
                                 "/api/guest-sessions/**",
                                 "/api/guest-onboarding/**",
-                                "/places/explore-filters",
                                 "/auth/dev/**",
                                 "/auth/kakao/login"
                         ).permitAll()

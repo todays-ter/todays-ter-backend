@@ -7,13 +7,16 @@ import com.umc.todayter.domain.place.enums.ThemeType;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DataJpaTest
 @TestPropertySource(properties = {
@@ -45,6 +48,43 @@ class PlaceRepositoryTest {
         assertThat(counts).containsEntry(ThemeType.CAREER, 1L);
         assertThat(counts).containsOnlyKeys(ThemeType.LOVE, ThemeType.CAREER);
         assertThat(counts).doesNotContainKey(ThemeType.HEALTH);
+    }
+
+    @Test
+    void findByIdAndActiveTrue_returnsOnlyActivePlace() {
+        Place activePlace = place("active", ThemeType.LOVE, true);
+        Place inactivePlace = place("inactive", ThemeType.LOVE, false);
+        placeRepository.save(activePlace);
+        placeRepository.save(inactivePlace);
+        placeRepository.flush();
+
+        assertThat(placeRepository.findByIdAndActiveTrue(activePlace.getId())).contains(activePlace);
+        assertThat(placeRepository.findByIdAndActiveTrue(inactivePlace.getId())).isEmpty();
+    }
+
+    @Test
+    void googlePlaceId_allowsMultipleNullValues() {
+        placeRepository.save(place("null-google-place-id-1", ThemeType.LOVE, true));
+        placeRepository.save(place("null-google-place-id-2", ThemeType.CAREER, true));
+
+        placeRepository.flush();
+
+        assertThat(placeRepository.count()).isEqualTo(2);
+    }
+
+    @Test
+    void googlePlaceId_rejectsDuplicateNonNullValues() {
+        Place first = place("google-place-id-1", ThemeType.LOVE, true);
+        Place second = place("google-place-id-2", ThemeType.CAREER, true);
+        ReflectionTestUtils.setField(first, "googlePlaceId", "duplicate-google-place-id");
+        ReflectionTestUtils.setField(second, "googlePlaceId", "duplicate-google-place-id");
+
+        assertThatThrownBy(() -> {
+            placeRepository.save(first);
+            placeRepository.save(second);
+            placeRepository.flush();
+        })
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     private Place place(String name, ThemeType themeType, boolean active) {
