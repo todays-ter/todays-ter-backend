@@ -9,7 +9,6 @@ public record FortuneReportStatusResponse(
         Long reportId,
         FortuneReportStatus status,
         int progress,
-        FortuneReportStep currentStep,
         boolean canRetry,
         int retryCount,
         @JsonInclude(JsonInclude.Include.NON_NULL) String failureMessage
@@ -21,7 +20,6 @@ public record FortuneReportStatusResponse(
                 report.getId(),
                 report.getStatus(),
                 report.getProgress(),
-                report.getCurrentStep(),
                 canRetry,
                 report.getRetryCount(),
                 report.getStatus() == FortuneReportStatus.FAILED ? report.getFailureMessage() : null
