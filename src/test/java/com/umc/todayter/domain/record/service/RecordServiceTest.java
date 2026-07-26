@@ -91,6 +91,7 @@ class RecordServiceTest {
         assertThat(response.rating()).isEqualTo(4);
         assertThat(response.content()).isEqualTo("좋았어요");
         assertThat(response.images()).isEmpty();
+        assertThat(response.visitVerifiedAt()).isNull();
     }
 
     @Test
@@ -187,6 +188,43 @@ class RecordServiceTest {
     }
 
     @Test
+    void createRecord_throwsWhenImageAlreadyUsed() {
+        Member member = member(1L);
+        Place place = place();
+        VisitRecordImage image = image(101L, member, "https://s3/a.jpg");
+        VisitRecord existingRecord = VisitRecord.create(member, place, RecordType.RECORD, 3, "이전 기록");
+        image.attachToRecord(existingRecord);
+        RecordCreateRequest request = new RecordCreateRequest(1L, RecordType.RECORD, 4, "내용", List.of(101L));
+
+        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
+        when(placeRepository.findById(1L)).thenReturn(Optional.of(place));
+        when(visitRecordImageRepository.findAllById(List.of(101L))).thenReturn(List.of(image));
+
+        assertThatThrownBy(() -> recordService.createRecord(request))
+                .isInstanceOf(CustomException.class)
+                .satisfies(e -> assertThat(((CustomException) e).getErrorCode())
+                        .isEqualTo(RecordErrorCode.IMAGE_ALREADY_USED));
+    }
+
+    @Test
+    void createRecord_convertsSaveRaceConditionToReviewAlreadyExists() {
+        Member member = member(1L);
+        Place place = place();
+        RecordCreateRequest request = new RecordCreateRequest(1L, RecordType.REVIEW, 5, "후기입니다", null);
+
+        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
+        when(placeRepository.findById(1L)).thenReturn(Optional.of(place));
+        when(visitRecordRepository.existsByMemberIdAndPlaceIdAndType(1L, place.getId(), RecordType.REVIEW)).thenReturn(false);
+        when(visitRecordRepository.save(any(VisitRecord.class)))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("duplicate key"));
+
+        assertThatThrownBy(() -> recordService.createRecord(request))
+                .isInstanceOf(CustomException.class)
+                .satisfies(e -> assertThat(((CustomException) e).getErrorCode())
+                        .isEqualTo(RecordErrorCode.REVIEW_ALREADY_EXISTS));
+    }
+
+    @Test
     void uploadImages_delegatesEachFileToS3UploaderAndReturnsImageIds() {
         Member member = member(1L);
         MultipartFile file1 = new MockMultipartFile("images", "a.jpg", "image/jpeg", new byte[]{1});
@@ -248,6 +286,48 @@ class RecordServiceTest {
                 .isInstanceOf(CustomException.class)
                 .satisfies(e -> assertThat(((CustomException) e).getErrorCode())
                         .isEqualTo(RecordErrorCode.IMAGE_FILE_TOO_LARGE));
+    }
+
+    @Test
+    void uploadImages_succeedsWithFiveFilesJustUnderPerFileLimit() {
+        Member member = member(1L);
+        byte[] justUnderLimit = new byte[10 * 1024 * 1024 - 1];
+        List<MultipartFile> files = List.of(
+                new MockMultipartFile("images", "a.jpg", "image/jpeg", justUnderLimit),
+                new MockMultipartFile("images", "b.jpg", "image/jpeg", justUnderLimit),
+                new MockMultipartFile("images", "c.jpg", "image/jpeg", justUnderLimit),
+                new MockMultipartFile("images", "d.jpg", "image/jpeg", justUnderLimit),
+                new MockMultipartFile("images", "e.jpg", "image/jpeg", justUnderLimit)
+        );
+
+        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
+        when(s3Uploader.upload(any(), org.mockito.ArgumentMatchers.eq("records"))).thenReturn("https://s3/x.jpg");
+        when(visitRecordImageRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        List<ImageInfo> result = recordService.uploadImages(files);
+
+        assertThat(result).hasSize(5);
+    }
+
+    @Test
+    void uploadImages_deletesUploadedFilesFromS3WhenSaveFails() {
+        Member member = member(1L);
+        MultipartFile file1 = new MockMultipartFile("images", "a.jpg", "image/jpeg", new byte[]{1});
+        MultipartFile file2 = new MockMultipartFile("images", "b.jpg", "image/jpeg", new byte[]{2});
+
+        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
+        when(s3Uploader.upload(file1, "records")).thenReturn("https://s3/a.jpg");
+        when(s3Uploader.upload(file2, "records")).thenReturn("https://s3/b.jpg");
+        when(visitRecordImageRepository.saveAll(any()))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("boom"));
+
+        assertThatThrownBy(() -> recordService.uploadImages(List.of(file1, file2)))
+                .isInstanceOf(CustomException.class)
+                .satisfies(e -> assertThat(((CustomException) e).getErrorCode())
+                        .isEqualTo(RecordErrorCode.IMAGE_UPLOAD_FAILED));
+
+        org.mockito.Mockito.verify(s3Uploader).delete("https://s3/a.jpg");
+        org.mockito.Mockito.verify(s3Uploader).delete("https://s3/b.jpg");
     }
 
     private MultipartFile jpg(String filename) {

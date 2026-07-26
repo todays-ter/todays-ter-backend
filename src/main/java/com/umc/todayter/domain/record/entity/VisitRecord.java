@@ -49,12 +49,20 @@ public class VisitRecord extends BaseEntity {
     @Column(nullable = false, columnDefinition = "text")
     private String content;
 
+    // REVIEW 타입에 한해 memberId:placeId 값을 채워 unique 제약으로 동시 중복 작성을 막는다.
+    // RECORD 타입은 null로 두어(MySQL unique는 null 중복을 허용) 여러 번 작성 가능하게 한다.
+    @Column(name = "review_uniqueness_key", unique = true)
+    private String reviewUniquenessKey;
+
     private VisitRecord(Member member, Place place, RecordType type, Integer rating, String content) {
         this.member = member;
         this.place = place;
         this.type = type;
         this.rating = rating;
         this.content = content;
+        this.reviewUniquenessKey = type == RecordType.REVIEW
+                ? member.getId() + ":" + place.getId()
+                : null;
     }
 
     public static VisitRecord create(Member member, Place place, RecordType type, Integer rating, String content) {

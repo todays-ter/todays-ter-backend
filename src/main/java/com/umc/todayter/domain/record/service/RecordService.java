@@ -18,11 +18,11 @@ import com.umc.todayter.global.apiPayload.exception.CustomException;
 import com.umc.todayter.global.security.SecurityUtil;
 import com.umc.todayter.global.util.S3Uploader;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -50,14 +50,25 @@ public class RecordService {
 
         Member member = getCurrentMember();
 
-        List<VisitRecordImage> saved = new ArrayList<>();
-        for (int sortOrder = 0; sortOrder < images.size(); sortOrder++) {
-            String imageUrl = s3Uploader.upload(images.get(sortOrder), IMAGE_KEY_PREFIX);
-            saved.add(VisitRecordImage.create(member, imageUrl, sortOrder));
-        }
-        saved = visitRecordImageRepository.saveAll(saved);
+        List<String> uploadedUrls = new ArrayList<>();
+        try {
+            List<VisitRecordImage> saved = new ArrayList<>();
+            for (int sortOrder = 0; sortOrder < images.size(); sortOrder++) {
+                String imageUrl = s3Uploader.upload(images.get(sortOrder), IMAGE_KEY_PREFIX);
+                uploadedUrls.add(imageUrl);
+                saved.add(VisitRecordImage.create(member, imageUrl, sortOrder));
+            }
+            saved = visitRecordImageRepository.saveAll(saved);
 
-        return saved.stream().map(ImageInfo::from).toList();
+            return saved.stream().map(ImageInfo::from).toList();
+        } catch (CustomException e) {
+            uploadedUrls.forEach(s3Uploader::delete);
+            throw e;
+        } catch (Exception e) {
+            // DB 저장 실패 등으로 이미 S3에 올라간 파일이 고아로 남지 않도록 정리한다.
+            uploadedUrls.forEach(s3Uploader::delete);
+            throw new CustomException(RecordErrorCode.IMAGE_UPLOAD_FAILED);
+        }
     }
 
     @Transactional
@@ -76,13 +87,21 @@ public class RecordService {
 
         List<VisitRecordImage> images = resolveImages(member.getId(), request.imageIds());
 
-        VisitRecord visitRecord = visitRecordRepository.save(
-                VisitRecord.create(member, place, request.type(), request.rating(), request.content())
-        );
+        VisitRecord visitRecord;
+        try {
+            visitRecord = visitRecordRepository.save(
+                    VisitRecord.create(member, place, request.type(), request.rating(), request.content())
+            );
+        } catch (DataIntegrityViolationException e) {
+            // existsByMemberIdAndPlaceIdAndType 체크와 저장 사이의 경합으로 두 요청이 동시에
+            // 통과했을 때, review_uniqueness_key unique 제약이 여기서 최종적으로 막아준다.
+            throw new CustomException(RecordErrorCode.REVIEW_ALREADY_EXISTS);
+        }
 
         images.forEach(image -> image.attachToRecord(visitRecord));
 
-        return RecordResponse.from(visitRecord, images, LocalDateTime.now());
+        // 방문 인증 기능이 아직 없어 검증된 방문 시각을 알 수 없으므로 스텁으로 null을 반환한다.
+        return RecordResponse.from(visitRecord, images, null);
     }
 
     private Member getCurrentMember() {
@@ -105,6 +124,12 @@ public class RecordService {
                 .anyMatch(image -> !image.getMember().getId().equals(memberId));
         if (hasForeignImage) {
             throw new CustomException(RecordErrorCode.IMAGE_ACCESS_DENIED);
+        }
+
+        boolean hasAlreadyUsedImage = images.stream()
+                .anyMatch(image -> image.getVisitRecord() != null);
+        if (hasAlreadyUsedImage) {
+            throw new CustomException(RecordErrorCode.IMAGE_ALREADY_USED);
         }
 
         return images;
