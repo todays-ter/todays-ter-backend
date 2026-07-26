@@ -1,6 +1,7 @@
 package com.umc.todayter.domain.record.controller;
 
 import com.umc.todayter.domain.record.dto.response.ImageInfo;
+import com.umc.todayter.domain.record.dto.response.RecordDetailResponse;
 import com.umc.todayter.domain.record.dto.response.RecordResponse;
 import com.umc.todayter.domain.record.enums.RecordType;
 import com.umc.todayter.domain.record.exception.RecordErrorCode;
@@ -23,6 +24,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -180,5 +182,74 @@ class RecordControllerTest {
                         .contentType("application/json")
                         .content(body))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getRecordDetail_withoutAuthorizationHeader_returnsUnauthorized() throws Exception {
+        mockMvc.perform(get("/records/10"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.isSuccess").value(false))
+                .andExpect(jsonPath("$.code").value("COMMON401"));
+    }
+
+    @Test
+    void getRecordDetail_withValidToken_returnsOk() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(recordService.getRecordDetail(10L)).thenReturn(new RecordDetailResponse(
+                10L, RecordType.RECORD, 2L, "청계천 모전교", null,
+                4, "오늘의 기운이 좋았어요", List.of("https://cdn.../review1.jpg"),
+                LocalDateTime.of(2026, 7, 19, 10, 0), LocalDateTime.of(2026, 7, 19, 10, 0)
+        ));
+
+        mockMvc.perform(get("/records/10")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isSuccess").value(true))
+                .andExpect(jsonPath("$.result.recordId").value(10))
+                .andExpect(jsonPath("$.result.reviewId").doesNotExist())
+                .andExpect(jsonPath("$.result.placeId").value(2))
+                .andExpect(jsonPath("$.result.imageUrls[0]").value("https://cdn.../review1.jpg"))
+                .andExpect(jsonPath("$.result.visitVerifiedAt").doesNotExist());
+    }
+
+    @Test
+    void getRecordDetail_reviewType_returnsReviewIdKey() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(recordService.getRecordDetail(10L)).thenReturn(new RecordDetailResponse(
+                10L, RecordType.REVIEW, 2L, "청계천 모전교", null,
+                4, "내용", List.of(), LocalDateTime.now(), LocalDateTime.now()
+        ));
+
+        mockMvc.perform(get("/records/10")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.reviewId").value(10))
+                .andExpect(jsonPath("$.result.recordId").doesNotExist());
+    }
+
+    @Test
+    void getRecordDetail_withValidToken_returnsNotFoundWhenMissing() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(recordService.getRecordDetail(10L)).thenThrow(new CustomException(RecordErrorCode.RECORD_NOT_FOUND));
+
+        mockMvc.perform(get("/records/10")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("RECORD404_3"));
+    }
+
+    @Test
+    void getRecordDetail_withValidToken_returnsForbiddenWhenNotOwner() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(recordService.getRecordDetail(10L)).thenThrow(new CustomException(RecordErrorCode.RECORD_ACCESS_DENIED));
+
+        mockMvc.perform(get("/records/10")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("RECORD403_2"));
     }
 }
