@@ -157,6 +157,21 @@ class PlaceServiceTest {
     }
 
     @Test
+    void getMyPlaces_categoriesReturnsOnlyOneWhenSecondPlaceIsTied() {
+        Member member = member(1L);
+        // love=50(1등 확정), relationship=30, career=30(2등 동점) -> 2등을 특정할 수 없어 1개만 반환
+        Place place = place(50, 30, 30, 5, 20, 1);
+        SavedPlace savedPlace = savedPlace(member, place);
+
+        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
+        when(savedPlaceRepository.findAllByMemberIdOrderByCreatedAtDesc(1L)).thenReturn(List.of(savedPlace));
+
+        PlaceListResponse response = placeService.getMyPlaces("saved");
+
+        assertThat(response.places().get(0).categories()).containsExactly("연애");
+    }
+
+    @Test
     void getMyPlaces_visitedType_returnsLatestVisitRecordPerPlace() {
         Member member = member(1L);
         Place place = place(10, 50, 30, 5, 20, 1);
