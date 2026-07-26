@@ -27,6 +27,14 @@ jwt:
   access-expire: ${JWT_ACCESS_TOKEN_EXPIRE_MS}
   refresh-expire: ${JWT_REFRESH_TOKEN_EXPIRE_MS}
 
+google:
+  places:
+    base-url: https://places.googleapis.com/v1
+    api-key: ${GOOGLE_PLACES_API_KEY:}
+    thumbnail-max-width: 800
+    connect-timeout: 3s
+    read-timeout: 5s
+    
 kakao:
   oauth:
     client-id: ${KAKAO_REST_API_KEY}
