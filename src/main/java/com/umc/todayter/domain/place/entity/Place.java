@@ -12,6 +12,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -25,7 +26,7 @@ import lombok.NoArgsConstructor;
 })
 public class Place extends BaseEntity {
 
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     private String name;
 
     @Column(nullable = false)
@@ -70,6 +71,28 @@ public class Place extends BaseEntity {
     @Column(name = "google_place_id", nullable = true, unique = true)
     private String googlePlaceId;
 
+    @Column(name = "terrain_type", nullable = false)
+    private String terrainType;
+
+    @Column(name = "love_score", nullable = false, columnDefinition = "integer default 0")
+    private Integer loveScore;
+
+    @Column(name = "relationship_score", nullable = false, columnDefinition = "integer default 0")
+    private Integer relationshipScore;
+
+    @Column(name = "career_score", nullable = false, columnDefinition = "integer default 0")
+    private Integer careerScore;
+
+    @Column(name = "study_score", nullable = false, columnDefinition = "integer default 0")
+    private Integer studyScore;
+
+    @Column(name = "rest_score", nullable = false, columnDefinition = "integer default 0")
+    private Integer restScore;
+
+    @Column(name = "transition_score", nullable = false, columnDefinition = "integer default 0")
+    private Integer transitionScore;
+
+    @Builder
     private Place(
             String name,
             String summary,
@@ -83,7 +106,15 @@ public class Place extends BaseEntity {
             Double averageRating,
             Integer reviewCount,
             Boolean editorPick,
-            Boolean active
+            Boolean active,
+            String googlePlaceId,
+            String terrainType,
+            Integer loveScore,
+            Integer relationshipScore,
+            Integer careerScore,
+            Integer studyScore,
+            Integer restScore,
+            Integer transitionScore
     ) {
         this.name = name;
         this.summary = summary;
@@ -98,37 +129,13 @@ public class Place extends BaseEntity {
         this.reviewCount = reviewCount;
         this.editorPick = editorPick;
         this.active = active;
-    }
-
-    public static Place create(
-            String name,
-            String summary,
-            String description,
-            String address,
-            RegionCode regionCode,
-            Double latitude,
-            Double longitude,
-            ElementType elementType,
-            ThemeType themeType,
-            Double averageRating,
-            Integer reviewCount,
-            Boolean editorPick,
-            Boolean active
-    ) {
-        return new Place(
-                name,
-                summary,
-                description,
-                address,
-                regionCode,
-                latitude,
-                longitude,
-                elementType,
-                themeType,
-                averageRating,
-                reviewCount,
-                editorPick,
-                active
-        );
+        this.googlePlaceId = googlePlaceId;
+        this.terrainType = terrainType;
+        this.loveScore = loveScore;
+        this.relationshipScore = relationshipScore;
+        this.careerScore = careerScore;
+        this.studyScore = studyScore;
+        this.restScore = restScore;
+        this.transitionScore = transitionScore;
     }
 }
