@@ -8,6 +8,7 @@ import com.umc.todayter.domain.auth.service.AuthTokenResult;
 import com.umc.todayter.domain.auth.service.KakaoAuthService;
 import com.umc.todayter.global.apiPayload.response.ApiResponse;
 import com.umc.todayter.global.util.AuthCookieUtil;
+import com.umc.todayter.global.util.GuestCookieUtil;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,9 +27,13 @@ public class AuthController {
     @PostMapping("/kakao/login")
     public ResponseEntity<ApiResponse<KakaoLoginResponse>> kakaoLogin(
             @Valid @RequestBody KakaoLoginRequest request,
+            @CookieValue(
+                    name = GuestCookieUtil.COOKIE_NAME,
+                    required = false
+            ) String guestId,
             HttpServletResponse response
     ) {
-        KakaoLoginResult result = kakaoAuthService.login(request.authorizationCode());
+        KakaoLoginResult result = kakaoAuthService.login(request.authorizationCode(), guestId);
 
         AuthTokenResult tokenResult = result.tokenResult();
 
@@ -41,7 +46,8 @@ public class AuthController {
         KakaoLoginResponse responseBody = new KakaoLoginResponse(
                 result.memberId(),
                 tokenResult.response().accessToken(),
-                result.newMember()
+                result.newMember(),
+                result.onboardingStep()
         );
 
         return ResponseEntity
