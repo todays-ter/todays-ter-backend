@@ -1,6 +1,7 @@
 package com.umc.todayter.domain.place.controller;
 
 import com.umc.todayter.domain.place.dto.response.ExploreFiltersResponse;
+import com.umc.todayter.domain.place.dto.response.PlaceDetailResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceListResponse;
 import com.umc.todayter.domain.place.service.PlaceService;
 import com.umc.todayter.domain.place.service.PlaceThumbnailService;
@@ -46,6 +47,16 @@ public class PlaceController {
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<PlaceListResponse>> getMyPlaces(@RequestParam(required = false) String type) {
         PlaceListResponse result = placeService.getMyPlaces(type);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.onSuccess(result, SuccessCode.OK));
+    }
+
+    @Operation(summary = "장소 상세 조회", description = "장소 상세 정보와 저장/방문 여부를 조회합니다.")
+    @GetMapping("/{placeId}")
+    public ResponseEntity<ApiResponse<PlaceDetailResponse>> getPlaceDetail(@PathVariable Long placeId) {
+        PlaceDetailResponse result = placeService.getPlaceDetail(placeId);
 
         return ResponseEntity
                 .status(HttpStatus.OK)

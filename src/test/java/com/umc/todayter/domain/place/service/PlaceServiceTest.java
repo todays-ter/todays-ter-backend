@@ -5,6 +5,7 @@ import com.umc.todayter.domain.member.exception.MemberErrorCode;
 import com.umc.todayter.domain.member.repository.MemberRepository;
 import com.umc.todayter.domain.place.dto.response.ElementFilterResponse;
 import com.umc.todayter.domain.place.dto.response.ExploreFiltersResponse;
+import com.umc.todayter.domain.place.dto.response.PlaceDetailResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceListResponse;
 import com.umc.todayter.domain.place.dto.response.RegionFilterResponse;
 import com.umc.todayter.domain.place.dto.response.ThemeFilterResponse;
@@ -215,6 +216,95 @@ class PlaceServiceTest {
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(MemberErrorCode.MEMBER_NOT_FOUND);
+    }
+
+    @Test
+    void getPlaceDetail_returnsDetailWithSavedAndVisitedTrue() {
+        Place place = place(10, 50, 30, 5, 20, 1);
+
+        when(placeRepository.findById(1L)).thenReturn(Optional.of(place));
+        when(visitRecordRepository.countByPlaceIdAndType(1L, RecordType.REVIEW)).thenReturn(9L);
+        when(savedPlaceRepository.existsByMemberIdAndPlaceId(1L, 1L)).thenReturn(true);
+        when(visitRecordRepository.existsByMemberIdAndPlaceId(1L, 1L)).thenReturn(true);
+
+        PlaceDetailResponse response = placeService.getPlaceDetail(1L);
+
+        assertThat(response.placeId()).isEqualTo(1L);
+        assertThat(response.placeName()).isEqualTo("경복궁");
+        assertThat(response.imageUrl()).isEqualTo("/places/1/thumbnail");
+        assertThat(response.element()).isEqualTo("화");
+        assertThat(response.hashtags()).containsExactly("궁궐");
+        assertThat(response.description().question()).isEqualTo("이 터의 특징은 무엇인가요?");
+        assertThat(response.description().answer()).contains("화(火)");
+        assertThat(response.address()).isEqualTo("address");
+        assertThat(response.latitude()).isEqualTo(37.5796);
+        assertThat(response.longitude()).isEqualTo(126.9770);
+        assertThat(response.reviewCount()).isEqualTo(9L);
+        assertThat(response.isSaved()).isTrue();
+        assertThat(response.isVisited()).isTrue();
+    }
+
+    @Test
+    void getPlaceDetail_returnsFalseFlagsAndZeroCountWhenNoData() {
+        Place place = place(10, 50, 30, 5, 20, 1);
+
+        when(placeRepository.findById(1L)).thenReturn(Optional.of(place));
+        when(visitRecordRepository.countByPlaceIdAndType(1L, RecordType.REVIEW)).thenReturn(0L);
+        when(savedPlaceRepository.existsByMemberIdAndPlaceId(1L, 1L)).thenReturn(false);
+        when(visitRecordRepository.existsByMemberIdAndPlaceId(1L, 1L)).thenReturn(false);
+
+        PlaceDetailResponse response = placeService.getPlaceDetail(1L);
+
+        assertThat(response.reviewCount()).isEqualTo(0L);
+        assertThat(response.isSaved()).isFalse();
+        assertThat(response.isVisited()).isFalse();
+    }
+
+    @Test
+    void getPlaceDetail_descriptionMatchesElementType() {
+        Place waterPlace = Place.builder()
+                .name("청계천")
+                .summary("summary")
+                .description("description")
+                .address("address")
+                .regionCode(RegionCode.SEOUL)
+                .latitude(37.5665)
+                .longitude(126.9780)
+                .elementType(ElementType.WATER)
+                .themeType(ThemeType.HEALTH)
+                .averageRating(0.0)
+                .reviewCount(0)
+                .editorPick(false)
+                .active(true)
+                .terrainType("하천")
+                .loveScore(0)
+                .relationshipScore(0)
+                .careerScore(0)
+                .studyScore(0)
+                .restScore(0)
+                .transitionScore(0)
+                .build();
+        ReflectionTestUtils.setField(waterPlace, "id", 2L);
+
+        when(placeRepository.findById(2L)).thenReturn(Optional.of(waterPlace));
+        when(visitRecordRepository.countByPlaceIdAndType(2L, RecordType.REVIEW)).thenReturn(0L);
+        when(savedPlaceRepository.existsByMemberIdAndPlaceId(1L, 2L)).thenReturn(false);
+        when(visitRecordRepository.existsByMemberIdAndPlaceId(1L, 2L)).thenReturn(false);
+
+        PlaceDetailResponse response = placeService.getPlaceDetail(2L);
+
+        assertThat(response.element()).isEqualTo("수");
+        assertThat(response.description().answer()).contains("수(水)").contains("감정 정리와 회복");
+    }
+
+    @Test
+    void getPlaceDetail_placeNotFound_throwsPlaceNotFound() {
+        when(placeRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> placeService.getPlaceDetail(999L))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(PlaceErrorCode.PLACE_NOT_FOUND);
     }
 
     private Member member(Long id) {
