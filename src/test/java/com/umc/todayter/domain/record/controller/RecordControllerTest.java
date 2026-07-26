@@ -2,6 +2,7 @@ package com.umc.todayter.domain.record.controller;
 
 import com.umc.todayter.domain.record.dto.response.ImageInfo;
 import com.umc.todayter.domain.record.dto.response.RecordResponse;
+import com.umc.todayter.domain.record.enums.RecordType;
 import com.umc.todayter.domain.record.exception.RecordErrorCode;
 import com.umc.todayter.domain.record.service.RecordService;
 import com.umc.todayter.global.apiPayload.exception.CustomException;
@@ -67,7 +68,7 @@ class RecordControllerTest {
         when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
         when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
         when(recordService.createRecord(any())).thenReturn(new RecordResponse(
-                1L, 1L, "북촌한옥마을", LocalDateTime.of(2026, 7, 1, 10, 0),
+                1L, RecordType.RECORD, 1L, "북촌한옥마을", LocalDateTime.of(2026, 7, 1, 10, 0),
                 4, "좋았어요", List.of(new ImageInfo(101L, "https://img1")), LocalDateTime.now()
         ));
 
@@ -82,9 +83,33 @@ class RecordControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.isSuccess").value(true))
                 .andExpect(jsonPath("$.code").value("COMMON201"))
+                .andExpect(jsonPath("$.result.recordId").value(1))
+                .andExpect(jsonPath("$.result.reviewId").doesNotExist())
                 .andExpect(jsonPath("$.result.placeId").value(1))
                 .andExpect(jsonPath("$.result.rating").value(4))
                 .andExpect(jsonPath("$.result.images[0].imageId").value(101));
+    }
+
+    @Test
+    void createRecord_withValidToken_reviewTypeReturnsReviewIdKey() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(recordService.createRecord(any())).thenReturn(new RecordResponse(
+                2L, RecordType.REVIEW, 1L, "북촌한옥마을", LocalDateTime.of(2026, 7, 1, 10, 0),
+                5, "좋았어요", List.of(), LocalDateTime.now()
+        ));
+
+        String body = """
+                {"placeId":1,"type":"REVIEW","rating":5,"content":"좋았어요","imageIds":[]}
+                """;
+
+        mockMvc.perform(post("/records")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.result.reviewId").value(2))
+                .andExpect(jsonPath("$.result.recordId").doesNotExist());
     }
 
     @Test
