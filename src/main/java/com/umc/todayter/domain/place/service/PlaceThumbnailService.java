@@ -7,14 +7,12 @@ import com.umc.todayter.global.apiPayload.exception.CustomException;
 import com.umc.todayter.global.apiPayload.response.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.net.URI;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class PlaceThumbnailService {
 
     private final PlaceRepository placeRepository;
