@@ -34,11 +34,12 @@ public class FortuneReportGenerationWorker {
 
             progressService.complete(reportId);
         } catch (FortuneReportGenerationException e) {
-            log.warn("Fortune report generation failed. reportId={}, code={}", reportId, e.getFailureCode(), e);
+            log.warn("사주 리포트 생성을 실패했습니다. reportId={}, code={}", reportId, e.getFailureCode(), e);
             progressService.fail(reportId, e.getFailureCode(), e.getPublicMessage());
         } catch (Exception e) {
-            log.error("Unexpected fortune report generation failure. reportId={}", reportId, e);
-            progressService.fail(reportId, "REPORT_GENERATION_FAILED", "리포트 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+            log.error("예기치 못한 사주 리포트 생성 실패했습니다. reportId={}", reportId, e);
+            progressService.fail(reportId, "REPORT_GENERATION_FAILED",
+                    "리포트 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
         }
     }
 }
