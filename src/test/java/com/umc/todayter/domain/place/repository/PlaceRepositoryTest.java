@@ -88,20 +88,27 @@ class PlaceRepositoryTest {
     }
 
     private Place place(String name, ThemeType themeType, boolean active) {
-        return Place.create(
-                name,
-                "summary",
-                "description",
-                "address",
-                RegionCode.SEOUL,
-                37.5665,
-                126.9780,
-                ElementType.FIRE,
-                themeType,
-                0.0,
-                0,
-                false,
-                active
-        );
+        return Place.builder()
+                .name(name)
+                .summary("summary")
+                .description("description")
+                .address("address")
+                .regionCode(RegionCode.SEOUL)
+                .latitude(37.5665)
+                .longitude(126.9780)
+                .elementType(ElementType.FIRE)
+                .themeType(themeType)
+                .averageRating(0.0)
+                .reviewCount(0)
+                .editorPick(false)
+                .active(active)
+                .terrainType("기타")
+                .loveScore(0)
+                .relationshipScore(0)
+                .careerScore(0)
+                .studyScore(0)
+                .restScore(0)
+                .transitionScore(0)
+                .build();
     }
 }
