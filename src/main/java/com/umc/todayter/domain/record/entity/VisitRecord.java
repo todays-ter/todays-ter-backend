@@ -68,4 +68,13 @@ public class VisitRecord extends BaseEntity {
     public static VisitRecord create(Member member, Place place, RecordType type, Integer rating, String content) {
         return new VisitRecord(member, place, type, rating, content);
     }
+
+    public void updateRatingAndContent(Integer rating, String content) {
+        if (rating != null) {
+            this.rating = rating;
+        }
+        if (content != null) {
+            this.content = content;
+        }
+    }
 }
