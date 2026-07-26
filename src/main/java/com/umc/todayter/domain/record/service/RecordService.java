@@ -7,6 +7,7 @@ import com.umc.todayter.domain.place.entity.Place;
 import com.umc.todayter.domain.place.repository.PlaceRepository;
 import com.umc.todayter.domain.record.dto.request.RecordCreateRequest;
 import com.umc.todayter.domain.record.dto.response.ImageInfo;
+import com.umc.todayter.domain.record.dto.response.RecordDetailResponse;
 import com.umc.todayter.domain.record.dto.response.RecordResponse;
 import com.umc.todayter.domain.record.entity.VisitRecord;
 import com.umc.todayter.domain.record.entity.VisitRecordImage;
@@ -102,6 +103,22 @@ public class RecordService {
 
         // 방문 인증 기능이 아직 없어 검증된 방문 시각을 알 수 없으므로 스텁으로 null을 반환한다.
         return RecordResponse.from(visitRecord, images, null);
+    }
+
+    public RecordDetailResponse getRecordDetail(Long recordId) {
+        Long memberId = SecurityUtil.getCurrentMemberId();
+
+        VisitRecord visitRecord = visitRecordRepository.findById(recordId)
+                .orElseThrow(() -> new CustomException(RecordErrorCode.RECORD_NOT_FOUND));
+
+        if (!visitRecord.getMember().getId().equals(memberId)) {
+            throw new CustomException(RecordErrorCode.RECORD_ACCESS_DENIED);
+        }
+
+        List<VisitRecordImage> images = visitRecordImageRepository.findByVisitRecordIdOrderBySortOrderAsc(recordId);
+
+        // 방문 인증 기능이 아직 없어 검증된 방문 시각을 알 수 없으므로 스텁으로 null을 반환한다.
+        return RecordDetailResponse.from(visitRecord, images, null);
     }
 
     private Member getCurrentMember() {
