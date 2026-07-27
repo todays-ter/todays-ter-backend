@@ -9,13 +9,24 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
+import java.util.List;
 
 public interface FortuneReportRepository extends JpaRepository<FortuneReport, Long> {
     Optional<FortuneReport> findFirstByMemberIdAndStatusOrderByIdDesc(Long memberId, FortuneReportStatus status);
+    Optional<FortuneReport> findFirstByGuestSessionIdAndStatusOrderByIdDesc(Long guestSessionId, FortuneReportStatus status);
 
     Optional<FortuneReport> findByIdAndMemberId(Long id, Long memberId);
+    Optional<FortuneReport> findByIdAndGuestSessionId(Long id, Long guestSessionId);
+    List<FortuneReport> findAllByGuestSessionId(Long guestSessionId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select r from FortuneReport r where r.id = :id and r.memberId = :memberId")
     Optional<FortuneReport> findOwnedByIdForUpdate(@Param("id") Long id, @Param("memberId") Long memberId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from FortuneReport r where r.id = :id and r.guestSessionId = :guestSessionId")
+    Optional<FortuneReport> findGuestOwnedByIdForUpdate(
+            @Param("id") Long id,
+            @Param("guestSessionId") Long guestSessionId
+    );
 }
