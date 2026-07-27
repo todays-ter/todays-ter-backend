@@ -2,6 +2,7 @@ package com.umc.todayter.domain.place.controller;
 
 import com.umc.todayter.domain.place.dto.response.ElementFilterResponse;
 import com.umc.todayter.domain.place.dto.response.ExploreFiltersResponse;
+import com.umc.todayter.domain.place.dto.response.PlaceDetailResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceListItemResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceListResponse;
 import com.umc.todayter.domain.place.dto.response.RegionFilterResponse;
@@ -140,6 +141,72 @@ class PlaceControllerTest {
                         .param("type", "bookmarked"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("PLACE400_2"));
+    }
+
+    @Test
+    void getPlaceDetail_withoutAuthorizationHeader_returnsUnauthorized() throws Exception {
+        mockMvc.perform(get("/places/1"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.isSuccess").value(false))
+                .andExpect(jsonPath("$.code").value("COMMON401"));
+    }
+
+    @Test
+    void getPlaceDetail_returnsFullDetail() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(placeService.getPlaceDetail(2L)).thenReturn(new PlaceDetailResponse(
+                2L,
+                "청계천 모전교",
+                "/places/2/thumbnail",
+                "수",
+                List.of("감정 회복"),
+                new PlaceDetailResponse.PlaceDescription("이 터의 특징은 무엇인가요?", "수(水) 기운이 강해 감정 정리와 회복에 좋아요."),
+                "서울 중구 무교동",
+                37.5665,
+                126.9780,
+                9L,
+                false,
+                false
+        ));
+
+        mockMvc.perform(get("/places/2")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isSuccess").value(true))
+                .andExpect(jsonPath("$.result.placeId").value(2))
+                .andExpect(jsonPath("$.result.placeName").value("청계천 모전교"))
+                .andExpect(jsonPath("$.result.element").value("수"))
+                .andExpect(jsonPath("$.result.hashtags[0]").value("감정 회복"))
+                .andExpect(jsonPath("$.result.description.question").value("이 터의 특징은 무엇인가요?"))
+                .andExpect(jsonPath("$.result.reviewCount").value(9))
+                .andExpect(jsonPath("$.result.isSaved").value(false))
+                .andExpect(jsonPath("$.result.isVisited").value(false));
+    }
+
+    @Test
+    void getPlaceDetail_placeNotFound_returnsNotFound() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(placeService.getPlaceDetail(999L)).thenThrow(new CustomException(PlaceErrorCode.PLACE_NOT_FOUND));
+
+        mockMvc.perform(get("/places/999")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("PLACE404_1"));
+    }
+
+    @Test
+    void getMyPlaces_stillResolvesToPlaceListEndpoint_notShadowedByPlaceDetail() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(placeService.getMyPlaces("saved")).thenReturn(new PlaceListResponse(List.of()));
+
+        mockMvc.perform(get("/places/me")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .param("type", "saved"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.places").isArray());
     }
 
     @Test
