@@ -3,7 +3,6 @@ package com.umc.todayter.domain.fortune.dto.response;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.umc.todayter.domain.fortune.entity.FortuneReport;
 import com.umc.todayter.domain.fortune.enums.FortuneReportStatus;
-import com.umc.todayter.domain.fortune.enums.FortuneReportStep;
 
 public record FortuneReportStatusResponse(
         Long reportId,
