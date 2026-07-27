@@ -2,9 +2,9 @@ package com.umc.todayter.domain.fortune.controller;
 
 import com.umc.todayter.domain.fortune.dto.response.FortuneReportCreateResponse;
 import com.umc.todayter.domain.fortune.dto.response.FortuneReportStatusResponse;
-import com.umc.todayter.domain.fortune.enums.code.FortuneReportSuccessCode;
 import com.umc.todayter.domain.fortune.service.FortuneReportService;
 import com.umc.todayter.global.apiPayload.response.ApiResponse;
+import com.umc.todayter.global.apiPayload.response.SuccessCode;
 import com.umc.todayter.global.security.SecurityUtil;
 import com.umc.todayter.global.util.GuestCookieUtil;
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,8 +32,8 @@ public class FortuneReportController {
                 SecurityUtil.getCurrentMemberIdOrNull(), guestId
         );
         return ResponseEntity
-                .status(FortuneReportSuccessCode.GENERATION_ACCEPTED.getHttpStatus())
-                .body(ApiResponse.onSuccess(result, FortuneReportSuccessCode.GENERATION_ACCEPTED));
+                .status(SuccessCode.ACCEPTED.getHttpStatus())
+                .body(ApiResponse.onSuccess(result, SuccessCode.ACCEPTED));
     }
 
     @Operation(summary = "리포트 생성 상태 조회", description = "리포트 상태와 0~100 진행률을 조회합니다.")
@@ -46,7 +46,7 @@ public class FortuneReportController {
         FortuneReportStatusResponse result = fortuneReportService.getStatus(
                 SecurityUtil.getCurrentMemberIdOrNull(), guestId, reportId
         );
-        return ResponseEntity.ok(ApiResponse.onSuccess(result, FortuneReportSuccessCode.STATUS_FOUND));
+        return ResponseEntity.ok(ApiResponse.onSuccess(result, SuccessCode.OK));
     }
 
     @Operation(summary = "실패한 리포트 재시도", description = "실패한 리포트를 같은 ID로 다시 생성합니다.")
@@ -60,7 +60,7 @@ public class FortuneReportController {
                 SecurityUtil.getCurrentMemberIdOrNull(), guestId, reportId
         );
         return ResponseEntity
-                .status(FortuneReportSuccessCode.RETRY_ACCEPTED.getHttpStatus())
-                .body(ApiResponse.onSuccess(result, FortuneReportSuccessCode.RETRY_ACCEPTED));
+                .status(SuccessCode.ACCEPTED.getHttpStatus())
+                .body(ApiResponse.onSuccess(result, SuccessCode.ACCEPTED));
     }
 }
