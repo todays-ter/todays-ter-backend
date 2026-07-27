@@ -3,6 +3,7 @@ package com.umc.todayter.domain.record.controller;
 import com.umc.todayter.domain.record.dto.request.RecordCreateRequest;
 import com.umc.todayter.domain.record.dto.response.ImageInfo;
 import com.umc.todayter.domain.record.dto.response.ImageUploadResponse;
+import com.umc.todayter.domain.record.dto.response.RecordDetailResponse;
 import com.umc.todayter.domain.record.dto.response.RecordResponse;
 import com.umc.todayter.domain.record.service.RecordService;
 import com.umc.todayter.global.apiPayload.response.ApiResponse;
@@ -14,6 +15,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -53,5 +56,15 @@ public class RecordController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(ApiResponse.onSuccess(result, SuccessCode.CREATED));
+    }
+
+    @Operation(summary = "다녀온 터 기록/후기 상세 조회", description = "본인이 작성한 기록/후기 상세 내용을 조회합니다.")
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<RecordDetailResponse>> getRecordDetail(@PathVariable Long id) {
+        RecordDetailResponse result = recordService.getRecordDetail(id);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.onSuccess(result, SuccessCode.OK));
     }
 }

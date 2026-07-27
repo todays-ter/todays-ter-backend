@@ -2,8 +2,11 @@ package com.umc.todayter.domain.place.controller;
 
 import com.umc.todayter.domain.place.dto.response.ElementFilterResponse;
 import com.umc.todayter.domain.place.dto.response.ExploreFiltersResponse;
+import com.umc.todayter.domain.place.dto.response.PlaceListItemResponse;
+import com.umc.todayter.domain.place.dto.response.PlaceListResponse;
 import com.umc.todayter.domain.place.dto.response.RegionFilterResponse;
 import com.umc.todayter.domain.place.dto.response.ThemeFilterResponse;
+import com.umc.todayter.domain.place.exception.PlaceErrorCode;
 import com.umc.todayter.domain.place.service.PlaceService;
 import com.umc.todayter.domain.place.service.PlaceThumbnailService;
 import com.umc.todayter.global.apiPayload.exception.CustomException;
@@ -22,6 +25,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.net.URI;
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.mockito.Mockito.when;
@@ -38,6 +42,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         SecurityConfig.class
 })
 class PlaceControllerTest {
+
+    private static final String VALID_TOKEN = "valid-token";
 
     @Autowired
     private MockMvc mockMvc;
@@ -69,6 +75,71 @@ class PlaceControllerTest {
                 .andExpect(jsonPath("$.result.regions").isArray())
                 .andExpect(jsonPath("$.result.themes").isArray())
                 .andExpect(jsonPath("$.result.elements").isArray());
+    }
+
+    @Test
+    void getMyPlaces_withoutAuthorizationHeader_returnsUnauthorized() throws Exception {
+        mockMvc.perform(get("/places/me").param("type", "saved"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.isSuccess").value(false))
+                .andExpect(jsonPath("$.code").value("COMMON401"));
+    }
+
+    @Test
+    void getMyPlaces_savedType_returnsPlaceList() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(placeService.getMyPlaces("saved")).thenReturn(new PlaceListResponse(List.of(
+                new PlaceListItemResponse(1L, "경복궁", "/places/1/thumbnail", List.of("관계", "일·커리어"), LocalDate.of(2026, 6, 29), "화")
+        )));
+
+        mockMvc.perform(get("/places/me")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .param("type", "saved"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isSuccess").value(true))
+                .andExpect(jsonPath("$.result.places[0].placeId").value(1))
+                .andExpect(jsonPath("$.result.places[0].placeName").value("경복궁"))
+                .andExpect(jsonPath("$.result.places[0].categories[0]").value("관계"))
+                .andExpect(jsonPath("$.result.places[0].element").value("화"));
+    }
+
+    @Test
+    void getMyPlaces_visitedType_returnsPlaceList() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(placeService.getMyPlaces("visited")).thenReturn(new PlaceListResponse(List.of()));
+
+        mockMvc.perform(get("/places/me")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .param("type", "visited"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.places").isArray());
+    }
+
+    @Test
+    void getMyPlaces_missingType_returnsBadRequest() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(placeService.getMyPlaces(null)).thenThrow(new CustomException(PlaceErrorCode.MISSING_TYPE_PARAMETER));
+
+        mockMvc.perform(get("/places/me")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("PLACE400_1"));
+    }
+
+    @Test
+    void getMyPlaces_invalidType_returnsBadRequest() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(placeService.getMyPlaces("bookmarked")).thenThrow(new CustomException(PlaceErrorCode.INVALID_TYPE_PARAMETER));
+
+        mockMvc.perform(get("/places/me")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .param("type", "bookmarked"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("PLACE400_2"));
     }
 
     @Test
