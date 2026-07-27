@@ -11,7 +11,9 @@ public enum RecordErrorCode implements BaseCode {
 
     PLACE_NOT_FOUND(HttpStatus.NOT_FOUND, "RECORD404_1", "장소를 찾을 수 없습니다."),
     IMAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "RECORD404_2", "존재하지 않는 이미지입니다."),
+    RECORD_NOT_FOUND(HttpStatus.NOT_FOUND, "RECORD404_3", "존재하지 않는 기록입니다."),
     IMAGE_ACCESS_DENIED(HttpStatus.FORBIDDEN, "RECORD403_1", "접근 권한이 없습니다."),
+    RECORD_ACCESS_DENIED(HttpStatus.FORBIDDEN, "RECORD403_2", "접근 권한이 없습니다."),
     REVIEW_ALREADY_EXISTS(HttpStatus.CONFLICT, "RECORD409_1", "이미 작성된 후기가 있습니다."),
     IMAGE_ALREADY_USED(HttpStatus.CONFLICT, "RECORD409_2", "이미 사용된 이미지입니다."),
     EMPTY_IMAGE_FILE(HttpStatus.BAD_REQUEST, "RECORD400_1", "업로드할 이미지가 없습니다."),

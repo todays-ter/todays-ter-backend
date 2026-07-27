@@ -10,6 +10,7 @@ import com.umc.todayter.domain.place.enums.ThemeType;
 import com.umc.todayter.domain.place.repository.PlaceRepository;
 import com.umc.todayter.domain.record.dto.request.RecordCreateRequest;
 import com.umc.todayter.domain.record.dto.response.ImageInfo;
+import com.umc.todayter.domain.record.dto.response.RecordDetailResponse;
 import com.umc.todayter.domain.record.dto.response.RecordResponse;
 import com.umc.todayter.domain.record.entity.VisitRecord;
 import com.umc.todayter.domain.record.entity.VisitRecordImage;
@@ -328,6 +329,65 @@ class RecordServiceTest {
 
         org.mockito.Mockito.verify(s3Uploader).delete("https://s3/a.jpg");
         org.mockito.Mockito.verify(s3Uploader).delete("https://s3/b.jpg");
+    }
+
+    @Test
+    void getRecordDetail_returnsDetailWithImageUrlsAndRecordIdKey() {
+        Member member = member(1L);
+        Place place = place();
+        VisitRecord visitRecord = VisitRecord.create(member, place, RecordType.RECORD, 4, "오늘의 기운이 좋았어요");
+        ReflectionTestUtils.setField(visitRecord, "id", 10L);
+        VisitRecordImage image = image(101L, member, "https://cdn.../review1.jpg");
+
+        when(visitRecordRepository.findById(10L)).thenReturn(Optional.of(visitRecord));
+        when(visitRecordImageRepository.findByVisitRecordIdOrderBySortOrderAsc(10L)).thenReturn(List.of(image));
+
+        RecordDetailResponse response = recordService.getRecordDetail(10L);
+
+        assertThat(response.imageUrls()).containsExactly("https://cdn.../review1.jpg");
+        assertThat(response.visitVerifiedAt()).isNull();
+        assertThat(response.idField()).containsEntry("recordId", 10L);
+        assertThat(response.idField()).doesNotContainKey("reviewId");
+    }
+
+    @Test
+    void getRecordDetail_reviewType_usesReviewIdKey() {
+        Member member = member(1L);
+        Place place = place();
+        VisitRecord visitRecord = VisitRecord.create(member, place, RecordType.REVIEW, 5, "후기입니다");
+        ReflectionTestUtils.setField(visitRecord, "id", 10L);
+
+        when(visitRecordRepository.findById(10L)).thenReturn(Optional.of(visitRecord));
+        when(visitRecordImageRepository.findByVisitRecordIdOrderBySortOrderAsc(10L)).thenReturn(List.of());
+
+        RecordDetailResponse response = recordService.getRecordDetail(10L);
+
+        assertThat(response.idField()).containsEntry("reviewId", 10L);
+    }
+
+    @Test
+    void getRecordDetail_throwsWhenRecordNotFound() {
+        when(visitRecordRepository.findById(10L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> recordService.getRecordDetail(10L))
+                .isInstanceOf(CustomException.class)
+                .satisfies(e -> assertThat(((CustomException) e).getErrorCode())
+                        .isEqualTo(RecordErrorCode.RECORD_NOT_FOUND));
+    }
+
+    @Test
+    void getRecordDetail_throwsWhenOwnedByAnotherMember() {
+        Member otherMember = member(2L);
+        Place place = place();
+        VisitRecord visitRecord = VisitRecord.create(otherMember, place, RecordType.RECORD, 4, "내용");
+        ReflectionTestUtils.setField(visitRecord, "id", 10L);
+
+        when(visitRecordRepository.findById(10L)).thenReturn(Optional.of(visitRecord));
+
+        assertThatThrownBy(() -> recordService.getRecordDetail(10L))
+                .isInstanceOf(CustomException.class)
+                .satisfies(e -> assertThat(((CustomException) e).getErrorCode())
+                        .isEqualTo(RecordErrorCode.RECORD_ACCESS_DENIED));
     }
 
     private MultipartFile jpg(String filename) {
