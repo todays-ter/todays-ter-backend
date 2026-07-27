@@ -20,6 +20,7 @@ public enum RecordErrorCode implements BaseCode {
     INVALID_IMAGE_FILE_TYPE(HttpStatus.BAD_REQUEST, "RECORD400_2", "지원하지 않는 파일 형식입니다."),
     IMAGE_FILE_TOO_LARGE(HttpStatus.BAD_REQUEST, "RECORD400_3", "파일 용량이 너무 큽니다."),
     TOO_MANY_IMAGE_FILES(HttpStatus.BAD_REQUEST, "RECORD400_4", "이미지는 최대 5장까지 업로드 가능합니다."),
+    NO_UPDATE_FIELD(HttpStatus.BAD_REQUEST, "RECORD400_5", "수정할 값이 없습니다."),
     IMAGE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "RECORD500_1", "이미지 업로드에 실패했습니다.")
     ;
 
