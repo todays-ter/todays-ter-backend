@@ -54,4 +54,8 @@ public class VisitRecordImage extends BaseEntity {
     public void attachToRecord(VisitRecord visitRecord) {
         this.visitRecord = visitRecord;
     }
+
+    public void detachFromRecord() {
+        this.visitRecord = null;
+    }
 }
