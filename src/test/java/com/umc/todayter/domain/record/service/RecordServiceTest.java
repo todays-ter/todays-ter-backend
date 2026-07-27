@@ -9,9 +9,12 @@ import com.umc.todayter.domain.place.enums.RegionCode;
 import com.umc.todayter.domain.place.enums.ThemeType;
 import com.umc.todayter.domain.place.repository.PlaceRepository;
 import com.umc.todayter.domain.record.dto.request.RecordCreateRequest;
+import com.umc.todayter.domain.record.dto.request.RecordUpdateRequest;
 import com.umc.todayter.domain.record.dto.response.ImageInfo;
 import com.umc.todayter.domain.record.dto.response.RecordDetailResponse;
+import com.umc.todayter.domain.record.dto.response.RecordIdResponse;
 import com.umc.todayter.domain.record.dto.response.RecordResponse;
+import com.umc.todayter.domain.record.dto.response.RecordUpdateResponse;
 import com.umc.todayter.domain.record.entity.VisitRecord;
 import com.umc.todayter.domain.record.entity.VisitRecordImage;
 import com.umc.todayter.domain.record.enums.RecordType;
@@ -385,6 +388,241 @@ class RecordServiceTest {
         when(visitRecordRepository.findById(10L)).thenReturn(Optional.of(visitRecord));
 
         assertThatThrownBy(() -> recordService.getRecordDetail(10L))
+                .isInstanceOf(CustomException.class)
+                .satisfies(e -> assertThat(((CustomException) e).getErrorCode())
+                        .isEqualTo(RecordErrorCode.RECORD_ACCESS_DENIED));
+    }
+
+    @Test
+    void updateRecord_updatesRatingOnly_leavesContentAndImagesUntouched() {
+        Member member = member(1L);
+        Place place = place();
+        VisitRecord visitRecord = VisitRecord.create(member, place, RecordType.RECORD, 3, "원래 내용");
+        ReflectionTestUtils.setField(visitRecord, "id", 10L);
+        VisitRecordImage existingImage = image(101L, member, "https://s3/a.jpg");
+        existingImage.attachToRecord(visitRecord);
+
+        when(visitRecordRepository.findById(10L)).thenReturn(Optional.of(visitRecord));
+        when(visitRecordImageRepository.findByVisitRecordIdOrderBySortOrderAsc(10L)).thenReturn(List.of(existingImage));
+
+        RecordUpdateResponse response = recordService.updateRecord(10L, new RecordUpdateRequest(5, null, null));
+
+        assertThat(response.rating()).isEqualTo(5);
+        assertThat(response.content()).isEqualTo("원래 내용");
+        assertThat(response.images()).extracting(ImageInfo::imageId).containsExactly(101L);
+        assertThat(existingImage.getVisitRecord()).isEqualTo(visitRecord);
+    }
+
+    @Test
+    void updateRecord_updatesContentOnly() {
+        Member member = member(1L);
+        Place place = place();
+        VisitRecord visitRecord = VisitRecord.create(member, place, RecordType.RECORD, 3, "원래 내용");
+        ReflectionTestUtils.setField(visitRecord, "id", 10L);
+
+        when(visitRecordRepository.findById(10L)).thenReturn(Optional.of(visitRecord));
+        when(visitRecordImageRepository.findByVisitRecordIdOrderBySortOrderAsc(10L)).thenReturn(List.of());
+
+        RecordUpdateResponse response = recordService.updateRecord(10L, new RecordUpdateRequest(null, "새 내용", null));
+
+        assertThat(response.rating()).isEqualTo(3);
+        assertThat(response.content()).isEqualTo("새 내용");
+    }
+
+    @Test
+    void updateRecord_replacesImages_detachesOldAndAttachesNew() {
+        Member member = member(1L);
+        Place place = place();
+        VisitRecord visitRecord = VisitRecord.create(member, place, RecordType.RECORD, 3, "내용");
+        ReflectionTestUtils.setField(visitRecord, "id", 10L);
+        VisitRecordImage oldImage = image(101L, member, "https://s3/a.jpg");
+        oldImage.attachToRecord(visitRecord);
+        VisitRecordImage newImage = image(102L, member, "https://s3/b.jpg");
+
+        when(visitRecordRepository.findById(10L)).thenReturn(Optional.of(visitRecord));
+        when(visitRecordImageRepository.findByVisitRecordIdOrderBySortOrderAsc(10L)).thenReturn(List.of(oldImage));
+        when(visitRecordImageRepository.findAllById(List.of(102L))).thenReturn(List.of(newImage));
+
+        RecordUpdateResponse response = recordService.updateRecord(10L, new RecordUpdateRequest(null, null, List.of(102L)));
+
+        assertThat(oldImage.getVisitRecord()).isNull();
+        assertThat(newImage.getVisitRecord()).isEqualTo(visitRecord);
+        assertThat(response.images()).extracting(ImageInfo::imageId).containsExactly(102L);
+    }
+
+    @Test
+    void updateRecord_emptyImageIdsList_detachesAllImages() {
+        Member member = member(1L);
+        Place place = place();
+        VisitRecord visitRecord = VisitRecord.create(member, place, RecordType.RECORD, 3, "내용");
+        ReflectionTestUtils.setField(visitRecord, "id", 10L);
+        VisitRecordImage oldImage = image(101L, member, "https://s3/a.jpg");
+        oldImage.attachToRecord(visitRecord);
+
+        when(visitRecordRepository.findById(10L)).thenReturn(Optional.of(visitRecord));
+        when(visitRecordImageRepository.findByVisitRecordIdOrderBySortOrderAsc(10L)).thenReturn(List.of(oldImage));
+
+        RecordUpdateResponse response = recordService.updateRecord(10L, new RecordUpdateRequest(null, null, List.of()));
+
+        assertThat(oldImage.getVisitRecord()).isNull();
+        assertThat(response.images()).isEmpty();
+    }
+
+    @Test
+    void updateRecord_reincludingAlreadyAttachedImage_isNotAnError() {
+        Member member = member(1L);
+        Place place = place();
+        VisitRecord visitRecord = VisitRecord.create(member, place, RecordType.RECORD, 3, "내용");
+        ReflectionTestUtils.setField(visitRecord, "id", 10L);
+        VisitRecordImage image = image(101L, member, "https://s3/a.jpg");
+        image.attachToRecord(visitRecord);
+
+        when(visitRecordRepository.findById(10L)).thenReturn(Optional.of(visitRecord));
+        when(visitRecordImageRepository.findByVisitRecordIdOrderBySortOrderAsc(10L)).thenReturn(List.of(image));
+        when(visitRecordImageRepository.findAllById(List.of(101L))).thenReturn(List.of(image));
+
+        RecordUpdateResponse response = recordService.updateRecord(10L, new RecordUpdateRequest(null, null, List.of(101L)));
+
+        assertThat(response.images()).extracting(ImageInfo::imageId).containsExactly(101L);
+        assertThat(image.getVisitRecord()).isEqualTo(visitRecord);
+    }
+
+    @Test
+    void updateRecord_throwsWhenNoFieldsProvided() {
+        Member member = member(1L);
+        Place place = place();
+        VisitRecord visitRecord = VisitRecord.create(member, place, RecordType.RECORD, 3, "내용");
+        ReflectionTestUtils.setField(visitRecord, "id", 10L);
+
+        when(visitRecordRepository.findById(10L)).thenReturn(Optional.of(visitRecord));
+
+        assertThatThrownBy(() -> recordService.updateRecord(10L, new RecordUpdateRequest(null, null, null)))
+                .isInstanceOf(CustomException.class)
+                .satisfies(e -> assertThat(((CustomException) e).getErrorCode())
+                        .isEqualTo(RecordErrorCode.NO_UPDATE_FIELD));
+    }
+
+    @Test
+    void updateRecord_throwsWhenRecordNotFound() {
+        when(visitRecordRepository.findById(10L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> recordService.updateRecord(10L, new RecordUpdateRequest(5, null, null)))
+                .isInstanceOf(CustomException.class)
+                .satisfies(e -> assertThat(((CustomException) e).getErrorCode())
+                        .isEqualTo(RecordErrorCode.RECORD_NOT_FOUND));
+    }
+
+    @Test
+    void updateRecord_throwsWhenNotOwner() {
+        Member otherMember = member(2L);
+        Place place = place();
+        VisitRecord visitRecord = VisitRecord.create(otherMember, place, RecordType.RECORD, 3, "내용");
+        ReflectionTestUtils.setField(visitRecord, "id", 10L);
+
+        when(visitRecordRepository.findById(10L)).thenReturn(Optional.of(visitRecord));
+
+        assertThatThrownBy(() -> recordService.updateRecord(10L, new RecordUpdateRequest(5, null, null)))
+                .isInstanceOf(CustomException.class)
+                .satisfies(e -> assertThat(((CustomException) e).getErrorCode())
+                        .isEqualTo(RecordErrorCode.RECORD_ACCESS_DENIED));
+    }
+
+    @Test
+    void updateRecord_throwsWhenImageIdNotFound() {
+        Member member = member(1L);
+        Place place = place();
+        VisitRecord visitRecord = VisitRecord.create(member, place, RecordType.RECORD, 3, "내용");
+        ReflectionTestUtils.setField(visitRecord, "id", 10L);
+
+        when(visitRecordRepository.findById(10L)).thenReturn(Optional.of(visitRecord));
+        when(visitRecordImageRepository.findByVisitRecordIdOrderBySortOrderAsc(10L)).thenReturn(List.of());
+        when(visitRecordImageRepository.findAllById(List.of(999L))).thenReturn(List.of());
+
+        assertThatThrownBy(() -> recordService.updateRecord(10L, new RecordUpdateRequest(null, null, List.of(999L))))
+                .isInstanceOf(CustomException.class)
+                .satisfies(e -> assertThat(((CustomException) e).getErrorCode())
+                        .isEqualTo(RecordErrorCode.IMAGE_NOT_FOUND));
+    }
+
+    @Test
+    void updateRecord_throwsWhenImageOwnedByAnotherMember() {
+        Member member = member(1L);
+        Member otherMember = member(2L);
+        Place place = place();
+        VisitRecord visitRecord = VisitRecord.create(member, place, RecordType.RECORD, 3, "내용");
+        ReflectionTestUtils.setField(visitRecord, "id", 10L);
+        VisitRecordImage foreignImage = image(101L, otherMember, "https://s3/a.jpg");
+
+        when(visitRecordRepository.findById(10L)).thenReturn(Optional.of(visitRecord));
+        when(visitRecordImageRepository.findByVisitRecordIdOrderBySortOrderAsc(10L)).thenReturn(List.of());
+        when(visitRecordImageRepository.findAllById(List.of(101L))).thenReturn(List.of(foreignImage));
+
+        assertThatThrownBy(() -> recordService.updateRecord(10L, new RecordUpdateRequest(null, null, List.of(101L))))
+                .isInstanceOf(CustomException.class)
+                .satisfies(e -> assertThat(((CustomException) e).getErrorCode())
+                        .isEqualTo(RecordErrorCode.IMAGE_ACCESS_DENIED));
+    }
+
+    @Test
+    void updateRecord_throwsWhenImageAlreadyUsedByAnotherRecord() {
+        Member member = member(1L);
+        Place place = place();
+        VisitRecord visitRecord = VisitRecord.create(member, place, RecordType.RECORD, 3, "내용");
+        ReflectionTestUtils.setField(visitRecord, "id", 10L);
+        VisitRecord otherRecord = VisitRecord.create(member, place, RecordType.RECORD, 4, "다른 기록");
+        ReflectionTestUtils.setField(otherRecord, "id", 20L);
+        VisitRecordImage usedImage = image(101L, member, "https://s3/a.jpg");
+        usedImage.attachToRecord(otherRecord);
+
+        when(visitRecordRepository.findById(10L)).thenReturn(Optional.of(visitRecord));
+        when(visitRecordImageRepository.findByVisitRecordIdOrderBySortOrderAsc(10L)).thenReturn(List.of());
+        when(visitRecordImageRepository.findAllById(List.of(101L))).thenReturn(List.of(usedImage));
+
+        assertThatThrownBy(() -> recordService.updateRecord(10L, new RecordUpdateRequest(null, null, List.of(101L))))
+                .isInstanceOf(CustomException.class)
+                .satisfies(e -> assertThat(((CustomException) e).getErrorCode())
+                        .isEqualTo(RecordErrorCode.IMAGE_ALREADY_USED));
+    }
+
+    @Test
+    void deleteRecord_deletesRecordAndDetachesImages() {
+        Member member = member(1L);
+        Place place = place();
+        VisitRecord visitRecord = VisitRecord.create(member, place, RecordType.RECORD, 3, "내용");
+        ReflectionTestUtils.setField(visitRecord, "id", 10L);
+        VisitRecordImage attachedImage = image(101L, member, "https://s3/a.jpg");
+        attachedImage.attachToRecord(visitRecord);
+
+        when(visitRecordRepository.findById(10L)).thenReturn(Optional.of(visitRecord));
+        when(visitRecordImageRepository.findByVisitRecordIdOrderBySortOrderAsc(10L)).thenReturn(List.of(attachedImage));
+
+        RecordIdResponse response = recordService.deleteRecord(10L);
+
+        assertThat(response.idField()).containsEntry("recordId", 10L);
+        assertThat(attachedImage.getVisitRecord()).isNull();
+        org.mockito.Mockito.verify(visitRecordRepository).delete(visitRecord);
+    }
+
+    @Test
+    void deleteRecord_throwsWhenRecordNotFound() {
+        when(visitRecordRepository.findById(10L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> recordService.deleteRecord(10L))
+                .isInstanceOf(CustomException.class)
+                .satisfies(e -> assertThat(((CustomException) e).getErrorCode())
+                        .isEqualTo(RecordErrorCode.RECORD_NOT_FOUND));
+    }
+
+    @Test
+    void deleteRecord_throwsWhenNotOwner() {
+        Member otherMember = member(2L);
+        Place place = place();
+        VisitRecord visitRecord = VisitRecord.create(otherMember, place, RecordType.RECORD, 3, "내용");
+        ReflectionTestUtils.setField(visitRecord, "id", 10L);
+
+        when(visitRecordRepository.findById(10L)).thenReturn(Optional.of(visitRecord));
+
+        assertThatThrownBy(() -> recordService.deleteRecord(10L))
                 .isInstanceOf(CustomException.class)
                 .satisfies(e -> assertThat(((CustomException) e).getErrorCode())
                         .isEqualTo(RecordErrorCode.RECORD_ACCESS_DENIED));

@@ -6,9 +6,12 @@ import com.umc.todayter.domain.member.repository.MemberRepository;
 import com.umc.todayter.domain.place.entity.Place;
 import com.umc.todayter.domain.place.repository.PlaceRepository;
 import com.umc.todayter.domain.record.dto.request.RecordCreateRequest;
+import com.umc.todayter.domain.record.dto.request.RecordUpdateRequest;
 import com.umc.todayter.domain.record.dto.response.ImageInfo;
 import com.umc.todayter.domain.record.dto.response.RecordDetailResponse;
+import com.umc.todayter.domain.record.dto.response.RecordIdResponse;
 import com.umc.todayter.domain.record.dto.response.RecordResponse;
+import com.umc.todayter.domain.record.dto.response.RecordUpdateResponse;
 import com.umc.todayter.domain.record.entity.VisitRecord;
 import com.umc.todayter.domain.record.entity.VisitRecordImage;
 import com.umc.todayter.domain.record.enums.RecordType;
@@ -119,6 +122,89 @@ public class RecordService {
 
         // 방문 인증 기능이 아직 없어 검증된 방문 시각을 알 수 없으므로 스텁으로 null을 반환한다.
         return RecordDetailResponse.from(visitRecord, images, null);
+    }
+
+    @Transactional
+    public RecordUpdateResponse updateRecord(Long recordId, RecordUpdateRequest request) {
+        Long memberId = SecurityUtil.getCurrentMemberId();
+
+        VisitRecord visitRecord = visitRecordRepository.findById(recordId)
+                .orElseThrow(() -> new CustomException(RecordErrorCode.RECORD_NOT_FOUND));
+
+        if (!visitRecord.getMember().getId().equals(memberId)) {
+            throw new CustomException(RecordErrorCode.RECORD_ACCESS_DENIED);
+        }
+
+        if (request.rating() == null && request.content() == null && request.imageIds() == null) {
+            throw new CustomException(RecordErrorCode.NO_UPDATE_FIELD);
+        }
+
+        visitRecord.updateRatingAndContent(request.rating(), request.content());
+
+        List<VisitRecordImage> finalImages = visitRecordImageRepository.findByVisitRecordIdOrderBySortOrderAsc(recordId);
+
+        if (request.imageIds() != null) {
+            List<VisitRecordImage> requestedImages = resolveImagesForUpdate(memberId, recordId, request.imageIds());
+            List<Long> requestedImageIds = requestedImages.stream().map(VisitRecordImage::getId).toList();
+
+            finalImages.stream()
+                    .filter(image -> !requestedImageIds.contains(image.getId()))
+                    .forEach(VisitRecordImage::detachFromRecord);
+
+            requestedImages.forEach(image -> image.attachToRecord(visitRecord));
+            finalImages = requestedImages;
+        }
+
+        return RecordUpdateResponse.from(visitRecord, finalImages);
+    }
+
+    @Transactional
+    public RecordIdResponse deleteRecord(Long recordId) {
+        Long memberId = SecurityUtil.getCurrentMemberId();
+
+        VisitRecord visitRecord = visitRecordRepository.findById(recordId)
+                .orElseThrow(() -> new CustomException(RecordErrorCode.RECORD_NOT_FOUND));
+
+        if (!visitRecord.getMember().getId().equals(memberId)) {
+            throw new CustomException(RecordErrorCode.RECORD_ACCESS_DENIED);
+        }
+
+        // VisitRecordImage.visit_record_id가 nullable FK라도 기본 RESTRICT 제약이 있어,
+        // 연결된 이미지가 남아있으면 삭제 시 FK 위반이 날 수 있어 먼저 분리한다.
+        List<VisitRecordImage> images = visitRecordImageRepository.findByVisitRecordIdOrderBySortOrderAsc(recordId);
+        images.forEach(VisitRecordImage::detachFromRecord);
+
+        RecordIdResponse response = RecordIdResponse.from(visitRecord);
+        visitRecordRepository.delete(visitRecord);
+
+        return response;
+    }
+
+    private List<VisitRecordImage> resolveImagesForUpdate(Long memberId, Long recordId, List<Long> imageIds) {
+        if (imageIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<VisitRecordImage> images = visitRecordImageRepository.findAllById(imageIds);
+        if (images.size() != imageIds.size()) {
+            throw new CustomException(RecordErrorCode.IMAGE_NOT_FOUND);
+        }
+
+        boolean hasForeignImage = images.stream()
+                .anyMatch(image -> !image.getMember().getId().equals(memberId));
+        if (hasForeignImage) {
+            throw new CustomException(RecordErrorCode.IMAGE_ACCESS_DENIED);
+        }
+
+        // 이미 이 기록에 붙어있는 이미지는 그대로 유지하는 것이니 허용하고,
+        // 다른 기록에 이미 붙어있는 이미지만 재사용 시도로 보고 막는다.
+        boolean hasAlreadyUsedImage = images.stream()
+                .anyMatch(image -> image.getVisitRecord() != null && !image.getVisitRecord().getId().equals(recordId));
+        if (hasAlreadyUsedImage) {
+            throw new CustomException(RecordErrorCode.IMAGE_ALREADY_USED);
+        }
+
+        return images;
     }
 
     private Member getCurrentMember() {
