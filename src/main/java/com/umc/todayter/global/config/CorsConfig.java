@@ -24,12 +24,14 @@ public class CorsConfig {
          *
          * 3000: React
          * 5173: Vite
+         * todays-ter-frontend.vercel.app: 배포된 프론트엔드
          *
          * 인증 쿠키를 허용하므로 "*" 대신 Origin을 명시해야 함
          */
         config.setAllowedOrigins(List.of(
                 "http://localhost:3000",
-                "http://localhost:5173"
+                "http://localhost:5173",
+                "https://todays-ter-frontend.vercel.app"
         ));
 
         // 프론트엔드에서 사용할 HTTP 메서드 허용
