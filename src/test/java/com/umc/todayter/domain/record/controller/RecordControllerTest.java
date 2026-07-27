@@ -2,7 +2,9 @@ package com.umc.todayter.domain.record.controller;
 
 import com.umc.todayter.domain.record.dto.response.ImageInfo;
 import com.umc.todayter.domain.record.dto.response.RecordDetailResponse;
+import com.umc.todayter.domain.record.dto.response.RecordIdResponse;
 import com.umc.todayter.domain.record.dto.response.RecordResponse;
+import com.umc.todayter.domain.record.dto.response.RecordUpdateResponse;
 import com.umc.todayter.domain.record.enums.RecordType;
 import com.umc.todayter.domain.record.exception.RecordErrorCode;
 import com.umc.todayter.domain.record.service.RecordService;
@@ -23,8 +25,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -248,6 +253,154 @@ class RecordControllerTest {
         when(recordService.getRecordDetail(10L)).thenThrow(new CustomException(RecordErrorCode.RECORD_ACCESS_DENIED));
 
         mockMvc.perform(get("/records/10")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("RECORD403_2"));
+    }
+
+    @Test
+    void updateRecord_withoutAuthorizationHeader_returnsUnauthorized() throws Exception {
+        mockMvc.perform(patch("/records/10")
+                        .contentType("application/json")
+                        .content("{\"rating\":5}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("COMMON401"));
+    }
+
+    @Test
+    void updateRecord_withValidToken_returnsOk() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(recordService.updateRecord(eq(10L), any())).thenReturn(new RecordUpdateResponse(
+                10L, RecordType.RECORD, 5, "다시 생각해보니 최고였어요",
+                List.of(new ImageInfo(101L, "https://cdn.../review1.jpg")),
+                LocalDateTime.of(2026, 7, 19, 11, 0)
+        ));
+
+        String body = """
+                {"rating":5,"content":"다시 생각해보니 최고였어요","imageIds":[101]}
+                """;
+
+        mockMvc.perform(patch("/records/10")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isSuccess").value(true))
+                .andExpect(jsonPath("$.result.recordId").value(10))
+                .andExpect(jsonPath("$.result.rating").value(5))
+                .andExpect(jsonPath("$.result.content").value("다시 생각해보니 최고였어요"))
+                .andExpect(jsonPath("$.result.images[0].imageId").value(101));
+    }
+
+    @Test
+    void updateRecord_withInvalidRating_returnsBadRequest() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+
+        mockMvc.perform(patch("/records/10")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .contentType("application/json")
+                        .content("{\"rating\":0}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateRecord_withNoFields_returnsBadRequest() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(recordService.updateRecord(eq(10L), any())).thenThrow(new CustomException(RecordErrorCode.NO_UPDATE_FIELD));
+
+        mockMvc.perform(patch("/records/10")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("RECORD400_5"));
+    }
+
+    @Test
+    void updateRecord_returnsNotFoundWhenMissing() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(recordService.updateRecord(eq(10L), any())).thenThrow(new CustomException(RecordErrorCode.RECORD_NOT_FOUND));
+
+        mockMvc.perform(patch("/records/10")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .contentType("application/json")
+                        .content("{\"rating\":5}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("RECORD404_3"));
+    }
+
+    @Test
+    void updateRecord_returnsForbiddenWhenNotOwner() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(recordService.updateRecord(eq(10L), any())).thenThrow(new CustomException(RecordErrorCode.RECORD_ACCESS_DENIED));
+
+        mockMvc.perform(patch("/records/10")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .contentType("application/json")
+                        .content("{\"rating\":5}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("RECORD403_2"));
+    }
+
+    @Test
+    void deleteRecord_withoutAuthorizationHeader_returnsUnauthorized() throws Exception {
+        mockMvc.perform(delete("/records/10"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("COMMON401"));
+    }
+
+    @Test
+    void deleteRecord_withValidToken_returnsOkWithIdOnly() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(recordService.deleteRecord(10L)).thenReturn(new RecordIdResponse(10L, RecordType.RECORD));
+
+        mockMvc.perform(delete("/records/10")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isSuccess").value(true))
+                .andExpect(jsonPath("$.result.recordId").value(10))
+                .andExpect(jsonPath("$.result.rating").doesNotExist())
+                .andExpect(jsonPath("$.result.content").doesNotExist());
+    }
+
+    @Test
+    void deleteRecord_reviewType_returnsReviewIdKey() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(recordService.deleteRecord(10L)).thenReturn(new RecordIdResponse(10L, RecordType.REVIEW));
+
+        mockMvc.perform(delete("/records/10")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.reviewId").value(10))
+                .andExpect(jsonPath("$.result.recordId").doesNotExist());
+    }
+
+    @Test
+    void deleteRecord_returnsNotFoundWhenMissing() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(recordService.deleteRecord(10L)).thenThrow(new CustomException(RecordErrorCode.RECORD_NOT_FOUND));
+
+        mockMvc.perform(delete("/records/10")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("RECORD404_3"));
+    }
+
+    @Test
+    void deleteRecord_returnsForbiddenWhenNotOwner() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(recordService.deleteRecord(10L)).thenThrow(new CustomException(RecordErrorCode.RECORD_ACCESS_DENIED));
+
+        mockMvc.perform(delete("/records/10")
                         .header("Authorization", "Bearer " + VALID_TOKEN))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("RECORD403_2"));
