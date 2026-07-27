@@ -24,15 +24,22 @@ import java.util.List;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "fortune_reports", indexes = {
-        @Index(name = "idx_fortune_reports_member_status", columnList = "member_id,status")
-})
+        @Index(name = "idx_fortune_reports_member_status", columnList = "member_id,status"),
+        @Index(name = "idx_fortune_reports_guest_status", columnList = "guest_session_id,status")
+}, check = @CheckConstraint(
+        name = "chk_fortune_reports_single_owner",
+        constraint = "(member_id is null) <> (guest_session_id is null)"
+))
 public class FortuneReport extends BaseEntity {
 
     @Version
     private Long version;
 
-    @Column(name = "member_id", nullable = false)
+    @Column(name = "member_id")
     private Long memberId;
+
+    @Column(name = "guest_session_id")
+    private Long guestSessionId;
 
     @Column(name = "onboarding_id", nullable = false)
     private Long onboardingId;
@@ -90,9 +97,26 @@ public class FortuneReport extends BaseEntity {
     @Column(name = "failed_at")
     private LocalDateTime failedAt;
 
-    public static FortuneReport create(Long memberId, Onboarding onboarding) {
-        FortuneReport report = new FortuneReport();
+    public static FortuneReport createForMember(Long memberId, Onboarding onboarding) {
+        if (memberId == null) {
+            throw new IllegalArgumentException("회원 ID는 필수입니다.");
+        }
+        FortuneReport report = createFrom(onboarding);
         report.memberId = memberId;
+        return report;
+    }
+
+    public static FortuneReport createForGuest(Long guestSessionId, Onboarding onboarding) {
+        if (guestSessionId == null) {
+            throw new IllegalArgumentException("게스트 세션 ID는 필수입니다.");
+        }
+        FortuneReport report = createFrom(onboarding);
+        report.guestSessionId = guestSessionId;
+        return report;
+    }
+
+    private static FortuneReport createFrom(Onboarding onboarding) {
+        FortuneReport report = new FortuneReport();
         report.onboardingId = onboarding.getId();
         report.calendarType = onboarding.getCalendarType();
         report.birthDate = onboarding.getBirthDate();
@@ -104,6 +128,14 @@ public class FortuneReport extends BaseEntity {
         report.progress = 0;
         report.retryCount = 0;
         return report;
+    }
+
+    public void transferToMember(Long memberId) {
+        if (memberId == null) {
+            throw new IllegalArgumentException("회원 ID는 필수입니다.");
+        }
+        this.memberId = memberId;
+        this.guestSessionId = null;
     }
 
     public void startAttempt() {

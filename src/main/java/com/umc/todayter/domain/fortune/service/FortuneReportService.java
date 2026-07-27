@@ -10,12 +10,16 @@ import com.umc.todayter.domain.fortune.exception.code.FortuneReportErrorCode;
 import com.umc.todayter.domain.fortune.repository.FortuneReportRepository;
 import com.umc.todayter.domain.member.service.MemberService;
 import com.umc.todayter.domain.onboarding.entity.Onboarding;
+import com.umc.todayter.domain.onboarding.entity.GuestSession;
+import com.umc.todayter.domain.onboarding.repository.GuestSessionRepository;
 import com.umc.todayter.domain.onboarding.repository.OnboardingRepository;
 import com.umc.todayter.global.apiPayload.exception.CustomException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -24,12 +28,20 @@ public class FortuneReportService {
 
     private final FortuneReportRepository fortuneReportRepository;
     private final OnboardingRepository onboardingRepository;
+    private final GuestSessionRepository guestSessionRepository;
     private final MemberService memberService;
     private final FortuneReportProperties properties;
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
-    public FortuneReportCreateResponse create(Long memberId) {
+    public FortuneReportCreateResponse create(Long memberId, String guestId) {
+        if (memberId != null) {
+            return createForMember(memberId);
+        }
+        return createForGuest(guestId);
+    }
+
+    private FortuneReportCreateResponse createForMember(Long memberId) {
         memberService.getActiveMember(memberId);
 
         fortuneReportRepository
@@ -45,23 +57,57 @@ public class FortuneReportService {
             throw new CustomException(FortuneReportErrorCode.SAJU_INFORMATION_NOT_FOUND);
         }
 
-        FortuneReport report = fortuneReportRepository.save(FortuneReport.create(memberId, onboarding));
+        FortuneReport report = fortuneReportRepository.save(FortuneReport.createForMember(memberId, onboarding));
         eventPublisher.publishEvent(new FortuneReportGenerationRequestedEvent(report.getId()));
 
         return FortuneReportCreateResponse.from(report);
     }
 
-    public FortuneReportStatusResponse getStatus(Long memberId, Long reportId) {
-        FortuneReport report = getOwnedReport(memberId, reportId);
+    private FortuneReportCreateResponse createForGuest(String guestId) {
+        GuestSession guestSession = getValidGuestSession(guestId);
+
+        fortuneReportRepository
+                .findFirstByGuestSessionIdAndStatusOrderByIdDesc(
+                        guestSession.getId(), FortuneReportStatus.PROCESSING
+                )
+                .ifPresent(report -> {
+                    throw new CustomException(FortuneReportErrorCode.REPORT_ALREADY_PROCESSING);
+                });
+
+        Onboarding onboarding = onboardingRepository.findByGuestSessionId(guestSession.getId())
+                .orElseThrow(() -> new CustomException(FortuneReportErrorCode.ONBOARDING_NOT_FOUND));
+
+        if (!onboarding.hasSajuInformation()) {
+            throw new CustomException(FortuneReportErrorCode.SAJU_INFORMATION_NOT_FOUND);
+        }
+
+        FortuneReport report = fortuneReportRepository.save(
+                FortuneReport.createForGuest(guestSession.getId(), onboarding)
+        );
+        eventPublisher.publishEvent(new FortuneReportGenerationRequestedEvent(report.getId()));
+
+        return FortuneReportCreateResponse.from(report);
+    }
+
+    public FortuneReportStatusResponse getStatus(Long memberId, String guestId, Long reportId) {
+        FortuneReport report = memberId != null
+                ? getMemberOwnedReport(memberId, reportId)
+                : getGuestOwnedReport(getValidGuestSession(guestId).getId(), reportId);
         return FortuneReportStatusResponse.from(report, properties.maxRetries());
     }
 
     @Transactional
-    public FortuneReportStatusResponse retry(Long memberId, Long reportId) {
-        memberService.getActiveMember(memberId);
-
-        FortuneReport report = fortuneReportRepository.findOwnedByIdForUpdate(reportId, memberId)
-                .orElseThrow(() -> new CustomException(FortuneReportErrorCode.REPORT_NOT_FOUND));
+    public FortuneReportStatusResponse retry(Long memberId, String guestId, Long reportId) {
+        FortuneReport report;
+        if (memberId != null) {
+            memberService.getActiveMember(memberId);
+            report = fortuneReportRepository.findOwnedByIdForUpdate(reportId, memberId)
+                    .orElseThrow(() -> new CustomException(FortuneReportErrorCode.REPORT_NOT_FOUND));
+        } else {
+            Long guestSessionId = getValidGuestSession(guestId).getId();
+            report = fortuneReportRepository.findGuestOwnedByIdForUpdate(reportId, guestSessionId)
+                    .orElseThrow(() -> new CustomException(FortuneReportErrorCode.REPORT_NOT_FOUND));
+        }
 
         if (report.getStatus() != FortuneReportStatus.FAILED) {
             throw new CustomException(FortuneReportErrorCode.REPORT_NOT_RETRYABLE);
@@ -76,8 +122,27 @@ public class FortuneReportService {
         return FortuneReportStatusResponse.from(report, properties.maxRetries());
     }
 
-    private FortuneReport getOwnedReport(Long memberId, Long reportId) {
+    private FortuneReport getMemberOwnedReport(Long memberId, Long reportId) {
         return fortuneReportRepository.findByIdAndMemberId(reportId, memberId)
                 .orElseThrow(() -> new CustomException(FortuneReportErrorCode.REPORT_NOT_FOUND));
+    }
+
+    private FortuneReport getGuestOwnedReport(Long guestSessionId, Long reportId) {
+        return fortuneReportRepository.findByIdAndGuestSessionId(reportId, guestSessionId)
+                .orElseThrow(() -> new CustomException(FortuneReportErrorCode.REPORT_NOT_FOUND));
+    }
+
+    private GuestSession getValidGuestSession(String guestId) {
+        if (guestId == null || guestId.isBlank()) {
+            throw new CustomException(FortuneReportErrorCode.GUEST_COOKIE_REQUIRED);
+        }
+
+        GuestSession guestSession = guestSessionRepository.findByGuestId(guestId)
+                .orElseThrow(() -> new CustomException(FortuneReportErrorCode.GUEST_SESSION_NOT_FOUND));
+
+        if (!guestSession.isUsable(LocalDateTime.now())) {
+            throw new CustomException(FortuneReportErrorCode.GUEST_SESSION_UNAVAILABLE);
+        }
+        return guestSession;
     }
 }

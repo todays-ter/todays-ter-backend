@@ -10,6 +10,9 @@ import org.springframework.http.HttpStatus;
 public enum FortuneReportErrorCode implements BaseCode {
     ONBOARDING_NOT_FOUND(HttpStatus.BAD_REQUEST, "FORTUNE400_1", "리포트 생성에 필요한 온보딩 정보가 없습니다."),
     SAJU_INFORMATION_NOT_FOUND(HttpStatus.BAD_REQUEST, "FORTUNE400_2", "생년월일과 출생 시간 정보를 먼저 입력해 주세요."),
+    GUEST_COOKIE_REQUIRED(HttpStatus.UNAUTHORIZED, "FORTUNE401_1", "비회원 세션 쿠키가 필요합니다."),
+    GUEST_SESSION_NOT_FOUND(HttpStatus.UNAUTHORIZED, "FORTUNE401_2", "비회원 세션을 찾을 수 없습니다."),
+    GUEST_SESSION_UNAVAILABLE(HttpStatus.UNAUTHORIZED, "FORTUNE401_3", "사용할 수 없는 비회원 세션입니다."),
     REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "FORTUNE404_1", "리포트를 찾을 수 없습니다."),
     REPORT_ALREADY_PROCESSING(HttpStatus.CONFLICT, "FORTUNE409_1", "이미 생성 중인 리포트가 있습니다."),
     REPORT_NOT_RETRYABLE(HttpStatus.CONFLICT, "FORTUNE409_2", "실패한 리포트만 재시도할 수 있습니다."),
