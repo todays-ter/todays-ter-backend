@@ -14,8 +14,8 @@ public class AuthCookieUtil {
         ResponseCookie cookie = ResponseCookie
                 .from(REFRESH_COOKIE_NAME, refreshToken)
                 .httpOnly(true)
-                .secure(false)
-                .sameSite("Lax")
+                .secure(true)
+                .sameSite("None")
                 .path("/")
                 .maxAge(maxAgeSeconds)
                 .build();
@@ -27,8 +27,8 @@ public class AuthCookieUtil {
         ResponseCookie cookie = ResponseCookie
                 .from(REFRESH_COOKIE_NAME, "")
                 .httpOnly(true)
-                .secure(false)
-                .sameSite("Lax")
+                .secure(true)
+                .sameSite("None")
                 .path("/")
                 .maxAge(0)
                 .build();
