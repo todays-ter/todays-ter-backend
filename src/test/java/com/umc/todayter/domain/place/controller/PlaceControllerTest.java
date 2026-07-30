@@ -4,6 +4,13 @@ import com.umc.todayter.domain.place.dto.response.ElementFilterResponse;
 import com.umc.todayter.domain.place.dto.response.ExploreFiltersResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceListItemResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceListResponse;
+import com.umc.todayter.domain.place.dto.response.PlaceSearchAppliedFiltersResponse;
+import com.umc.todayter.domain.place.dto.response.PlaceSearchItemResponse;
+import com.umc.todayter.domain.place.dto.response.PlaceSearchPageResponse;
+import com.umc.todayter.domain.place.dto.response.PlaceSearchResponse;
+import com.umc.todayter.domain.place.dto.response.PlaceSearchTypeResponse;
+import com.umc.todayter.domain.place.dto.request.PlaceSearchRequest;
+import com.umc.todayter.domain.place.service.PlaceSearchService;
 import com.umc.todayter.domain.place.dto.response.RegionFilterResponse;
 import com.umc.todayter.domain.place.dto.response.ThemeFilterResponse;
 import com.umc.todayter.domain.place.exception.PlaceErrorCode;
@@ -14,6 +21,7 @@ import com.umc.todayter.global.apiPayload.response.ErrorCode;
 import com.umc.todayter.global.config.SecurityConfig;
 import com.umc.todayter.global.security.jwt.JwtProvider;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration;
 import org.springframework.boot.security.autoconfigure.web.servlet.SecurityFilterAutoConfiguration;
@@ -28,7 +36,9 @@ import java.net.URI;
 import java.time.LocalDate;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -52,6 +62,9 @@ class PlaceControllerTest {
     private PlaceService placeService;
 
     @MockitoBean
+    private PlaceSearchService placeSearchService;
+
+    @MockitoBean
     private PlaceThumbnailService placeThumbnailService;
 
     @MockitoBean
@@ -59,6 +72,148 @@ class PlaceControllerTest {
 
     @MockitoBean
     private JpaMetamodelMappingContext jpaMetamodelMappingContext;
+
+    @Test
+    void searchPlaces_returnsApiResponseWithoutAccessToken() throws Exception {
+        when(placeSearchService.searchPlaces(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq("http://localhost")))
+                .thenReturn(new PlaceSearchResponse(
+                        new PlaceSearchAppliedFiltersResponse("palace", "SEOUL", "WEALTH", "EARTH"),
+                        List.of(new PlaceSearchItemResponse(
+                                1L,
+                                "Gyeongbokgung",
+                                "http://localhost/places/1/thumbnail",
+                                "summary",
+                                new PlaceSearchTypeResponse("EARTH", "earth"),
+                                new PlaceSearchTypeResponse("WEALTH", "wealth"),
+                                4.7,
+                                3.5
+                        )),
+                        new PlaceSearchPageResponse(0, 20, 1, 1, false)
+                ));
+
+        mockMvc.perform(get("/places")
+                        .param("keyword", " palace ")
+                        .param("regionCode", "SEOUL")
+                        .param("themeType", "WEALTH")
+                        .param("elementType", "EARTH")
+                        .param("latitude", "37.5665")
+                        .param("longitude", "126.9780"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isSuccess").value(true))
+                .andExpect(jsonPath("$.code").value("COMMON200"))
+                .andExpect(jsonPath("$.result.appliedFilters.keyword").value("palace"))
+                .andExpect(jsonPath("$.result.content[0].placeId").value(1))
+                .andExpect(jsonPath("$.result.content[0].thumbnailUrl").value("http://localhost/places/1/thumbnail"))
+                .andExpect(jsonPath("$.result.content[0].element.code").value("EARTH"))
+                .andExpect(jsonPath("$.result.content[0].theme.code").value("WEALTH"))
+                .andExpect(jsonPath("$.result.content[0].distanceKm").value(3.5))
+                .andExpect(jsonPath("$.result.page.number").value(0))
+                .andExpect(jsonPath("$.result.page.size").value(20));
+    }
+
+    @Test
+    void searchPlaces_usesDefaultPageAndSize() throws Exception {
+        when(placeSearchService.searchPlaces(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(new PlaceSearchResponse(
+                        new PlaceSearchAppliedFiltersResponse(null, null, null, null),
+                        List.of(),
+                        new PlaceSearchPageResponse(0, 20, 0, 0, false)
+                ));
+
+        mockMvc.perform(get("/places"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.page.number").value(0))
+                .andExpect(jsonPath("$.result.page.size").value(20));
+
+        ArgumentCaptor<PlaceSearchRequest> requestCaptor = ArgumentCaptor.forClass(PlaceSearchRequest.class);
+        verify(placeSearchService).searchPlaces(requestCaptor.capture(), org.mockito.ArgumentMatchers.anyString());
+        PlaceSearchRequest request = requestCaptor.getValue();
+        assertThat(request.getPage()).isZero();
+        assertThat(request.getSize()).isEqualTo(20);
+        assertThat(request.getKeyword()).isNull();
+        assertThat(request.getLatitude()).isNull();
+        assertThat(request.getLongitude()).isNull();
+    }
+
+    @Test
+    void searchPlaces_returnsOkWithEmptyContent() throws Exception {
+        when(placeSearchService.searchPlaces(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(new PlaceSearchResponse(
+                        new PlaceSearchAppliedFiltersResponse(null, null, null, null),
+                        List.of(),
+                        new PlaceSearchPageResponse(0, 20, 0, 0, false)
+                ));
+
+        mockMvc.perform(get("/places"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.content").isEmpty());
+    }
+
+    @Test
+    void searchPlaces_blankKeywordReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/places").param("keyword", " "))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.isSuccess").value(false))
+                .andExpect(jsonPath("$.code").value("COMMON400"));
+    }
+
+    @Test
+    void searchPlaces_invalidPageReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/places").param("page", "-1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON400"));
+    }
+
+    @Test
+    void searchPlaces_invalidSizeReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/places").param("size", "0"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON400"));
+
+        mockMvc.perform(get("/places").param("size", "51"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON400"));
+    }
+
+    @Test
+    void searchPlaces_singleCoordinateReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/places").param("latitude", "37.5"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON400"));
+
+        mockMvc.perform(get("/places").param("longitude", "127.0"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON400"));
+    }
+
+    @Test
+    void searchPlaces_outOfRangeCoordinateReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/places")
+                        .param("latitude", "91")
+                        .param("longitude", "127.0"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON400"));
+
+        mockMvc.perform(get("/places")
+                        .param("latitude", "37.5")
+                        .param("longitude", "181"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON400"));
+    }
+
+    @Test
+    void searchPlaces_invalidEnumReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/places").param("regionCode", "ALL"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON400"));
+    }
+
+    @Test
+    void searchPlaces_invalidNumberTypeReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/places").param("latitude", "not-number").param("longitude", "127.0"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON400"));
+    }
 
     @Test
     void getExploreFilters_returnsApiResponseWithoutAccessToken() throws Exception {

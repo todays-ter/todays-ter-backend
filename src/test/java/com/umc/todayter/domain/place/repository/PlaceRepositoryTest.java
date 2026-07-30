@@ -8,8 +8,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.EnumMap;
 import java.util.Map;
@@ -74,10 +77,8 @@ class PlaceRepositoryTest {
 
     @Test
     void googlePlaceId_rejectsDuplicateNonNullValues() {
-        Place first = place("google-place-id-1", ThemeType.LOVE, true);
-        Place second = place("google-place-id-2", ThemeType.CAREER, true);
-        ReflectionTestUtils.setField(first, "googlePlaceId", "duplicate-google-place-id");
-        ReflectionTestUtils.setField(second, "googlePlaceId", "duplicate-google-place-id");
+        Place first = place("google-place-id-1", ThemeType.LOVE, true, "duplicate-google-place-id");
+        Place second = place("google-place-id-2", ThemeType.CAREER, true, "duplicate-google-place-id");
 
         assertThatThrownBy(() -> {
             placeRepository.save(first);
@@ -87,22 +88,211 @@ class PlaceRepositoryTest {
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
+    @Test
+    void searchPlaces_withoutFilters_returnsOnlyActivePlaces() {
+        placeRepository.save(place("search-active", ThemeType.LOVE, true));
+        placeRepository.save(place("search-inactive", ThemeType.LOVE, false));
+        placeRepository.flush();
+
+        Page<Place> result = placeRepository.findAll(searchSpec(null, null, null, null), pageRequest());
+
+        assertThat(result.getContent()).extracting(Place::getName).contains("search-active");
+        assertThat(result.getContent()).extracting(Place::getName).doesNotContain("search-inactive");
+    }
+
+    @Test
+    void searchPlaces_keywordMatchesNameIgnoringCase() {
+        placeRepository.save(place("Royal Palace", "quiet", "description", "address", RegionCode.SEOUL, ThemeType.LOVE, ElementType.FIRE, true, 4.0));
+        placeRepository.save(place("no-match-name", "quiet", "description", "address", RegionCode.SEOUL, ThemeType.LOVE, ElementType.FIRE, true, 4.0));
+        placeRepository.flush();
+
+        Page<Place> result = placeRepository.findAll(searchSpec("palace", null, null, null), pageRequest());
+
+        assertThat(result.getContent()).extracting(Place::getName).containsExactly("Royal Palace");
+    }
+
+    @Test
+    void searchPlaces_keywordMatchesSummaryIgnoringCase() {
+        placeRepository.save(place("summary-match", "PALACE mood", "description", "address", RegionCode.SEOUL, ThemeType.LOVE, ElementType.FIRE, true, 4.0));
+        placeRepository.save(place("no-match-summary", "quiet", "description", "address", RegionCode.SEOUL, ThemeType.LOVE, ElementType.FIRE, true, 4.0));
+        placeRepository.flush();
+
+        Page<Place> result = placeRepository.findAll(searchSpec("palace", null, null, null), pageRequest());
+
+        assertThat(result.getContent()).extracting(Place::getName).containsExactly("summary-match");
+    }
+
+    @Test
+    void searchPlaces_keywordMatchesAddressIgnoringCase() {
+        placeRepository.save(place("address-match", "quiet", "description", "old palace road", RegionCode.SEOUL, ThemeType.LOVE, ElementType.FIRE, true, 4.0));
+        placeRepository.save(place("no-match-address", "quiet", "description", "address", RegionCode.SEOUL, ThemeType.LOVE, ElementType.FIRE, true, 4.0));
+        placeRepository.flush();
+
+        Page<Place> result = placeRepository.findAll(searchSpec("palace", null, null, null), pageRequest());
+
+        assertThat(result.getContent()).extracting(Place::getName).containsExactly("address-match");
+    }
+
+    @Test
+    void searchPlaces_keywordTreatsPercentAsLiteral() {
+        placeRepository.save(place("percent-match", "save 20% today", "description", "address", RegionCode.SEOUL, ThemeType.LOVE, ElementType.FIRE, true, 4.0));
+        placeRepository.save(place("percent-normal", "save 20 percent today", "description", "address", RegionCode.SEOUL, ThemeType.LOVE, ElementType.FIRE, true, 4.0));
+        placeRepository.flush();
+
+        Page<Place> result = placeRepository.findAll(searchSpec("%", null, null, null), pageRequest());
+
+        assertThat(result.getContent()).extracting(Place::getName).containsExactly("percent-match");
+    }
+
+    @Test
+    void searchPlaces_keywordTreatsUnderscoreAsLiteral() {
+        placeRepository.save(place("underscore_match", "summary", "description", "address", RegionCode.SEOUL, ThemeType.LOVE, ElementType.FIRE, true, 4.0));
+        placeRepository.save(place("underscore-normal", "summary", "description", "address", RegionCode.SEOUL, ThemeType.LOVE, ElementType.FIRE, true, 4.0));
+        placeRepository.flush();
+
+        Page<Place> result = placeRepository.findAll(searchSpec("_", null, null, null), pageRequest());
+
+        assertThat(result.getContent()).extracting(Place::getName).containsExactly("underscore_match");
+    }
+
+    @Test
+    void searchPlaces_keywordTreatsBackslashAsLiteral() {
+        placeRepository.save(place("backslash-match", "summary", "description", "path\\to\\place", RegionCode.SEOUL, ThemeType.LOVE, ElementType.FIRE, true, 4.0));
+        placeRepository.save(place("backslash-normal", "summary", "description", "path/to/place", RegionCode.SEOUL, ThemeType.LOVE, ElementType.FIRE, true, 4.0));
+        placeRepository.flush();
+
+        Page<Place> result = placeRepository.findAll(searchSpec("\\", null, null, null), pageRequest());
+
+        assertThat(result.getContent()).extracting(Place::getName).containsExactly("backslash-match");
+    }
+
+    @Test
+    void searchPlaces_filtersByRegionThemeAndElement() {
+        placeRepository.save(place("region-match", "summary", "description", "address", RegionCode.JEJU, ThemeType.LOVE, ElementType.FIRE, true, 4.0));
+        placeRepository.save(place("theme-match", "summary", "description", "address", RegionCode.SEOUL, ThemeType.WEALTH, ElementType.FIRE, true, 4.0));
+        placeRepository.save(place("element-match", "summary", "description", "address", RegionCode.SEOUL, ThemeType.LOVE, ElementType.EARTH, true, 4.0));
+        placeRepository.flush();
+
+        assertThat(placeRepository.findAll(searchSpec(null, RegionCode.JEJU, null, null), pageRequest()).getContent())
+                .extracting(Place::getName)
+                .containsExactly("region-match");
+        assertThat(placeRepository.findAll(searchSpec(null, null, ThemeType.WEALTH, null), pageRequest()).getContent())
+                .extracting(Place::getName)
+                .containsExactly("theme-match");
+        assertThat(placeRepository.findAll(searchSpec(null, null, null, ElementType.EARTH), pageRequest()).getContent())
+                .extracting(Place::getName)
+                .containsExactly("element-match");
+    }
+
+    @Test
+    void searchPlaces_combinesConditionsWithAnd() {
+        placeRepository.save(place("and-match-palace", "summary", "description", "address", RegionCode.SEOUL, ThemeType.WEALTH, ElementType.EARTH, true, 4.0));
+        placeRepository.save(place("and-other-region-palace", "summary", "description", "address", RegionCode.JEJU, ThemeType.WEALTH, ElementType.EARTH, true, 4.0));
+        placeRepository.save(place("and-other-theme-palace", "summary", "description", "address", RegionCode.SEOUL, ThemeType.LOVE, ElementType.EARTH, true, 4.0));
+        placeRepository.save(place("and-other-element-palace", "summary", "description", "address", RegionCode.SEOUL, ThemeType.WEALTH, ElementType.FIRE, true, 4.0));
+        placeRepository.flush();
+
+        Page<Place> result = placeRepository.findAll(
+                searchSpec("palace", RegionCode.SEOUL, ThemeType.WEALTH, ElementType.EARTH),
+                pageRequest()
+        );
+
+        assertThat(result.getContent()).extracting(Place::getName).containsExactly("and-match-palace");
+    }
+
+    @Test
+    void searchPlaces_sortsByAverageRatingDescAndIdAsc() {
+        Place low = placeRepository.save(place("sort-low", "summary", "description", "address", RegionCode.SEOUL, ThemeType.LOVE, ElementType.FIRE, true, 3.0));
+        Place highFirst = placeRepository.save(place("sort-high-first", "summary", "description", "address", RegionCode.SEOUL, ThemeType.LOVE, ElementType.FIRE, true, 5.0));
+        Place highSecond = placeRepository.save(place("sort-high-second", "summary", "description", "address", RegionCode.SEOUL, ThemeType.LOVE, ElementType.FIRE, true, 5.0));
+        placeRepository.flush();
+
+        Page<Place> result = placeRepository.findAll(searchSpec(null, null, null, null), pageRequest());
+
+        assertThat(result.getContent())
+                .extracting(Place::getId)
+                .containsSubsequence(highFirst.getId(), highSecond.getId(), low.getId());
+    }
+
+    @Test
+    void searchPlaces_paginatesResults() {
+        placeRepository.save(place("page-first", "summary", "description", "address", RegionCode.SEOUL, ThemeType.LOVE, ElementType.FIRE, true, 5.0));
+        placeRepository.save(place("page-second", "summary", "description", "address", RegionCode.SEOUL, ThemeType.LOVE, ElementType.FIRE, true, 4.0));
+        placeRepository.save(place("page-third", "summary", "description", "address", RegionCode.SEOUL, ThemeType.LOVE, ElementType.FIRE, true, 3.0));
+        placeRepository.flush();
+
+        Page<Place> result = placeRepository.findAll(
+                searchSpec(null, null, null, null),
+                PageRequest.of(1, 1, fixedSort())
+        );
+
+        assertThat(result.getContent()).extracting(Place::getName).containsExactly("page-second");
+        assertThat(result.getTotalElements()).isEqualTo(3);
+        assertThat(result.getTotalPages()).isEqualTo(3);
+        assertThat(result.hasNext()).isTrue();
+    }
+
+    @Test
+    void searchPlaces_returnsEmptyPageWhenNoResult() {
+        placeRepository.save(place("empty-source", ThemeType.LOVE, true));
+        placeRepository.flush();
+
+        Page<Place> result = placeRepository.findAll(searchSpec("missing", null, null, null), pageRequest());
+
+        assertThat(result.getContent()).isEmpty();
+        assertThat(result.getTotalElements()).isZero();
+    }
+
     private Place place(String name, ThemeType themeType, boolean active) {
+        return place(name, themeType, active, null);
+    }
+
+    private Place place(String name, ThemeType themeType, boolean active, String googlePlaceId) {
+        return place(name, "summary", "description", "address", RegionCode.SEOUL, themeType, ElementType.FIRE, active, 0.0, googlePlaceId);
+    }
+
+    private Place place(
+            String name,
+            String summary,
+            String description,
+            String address,
+            RegionCode regionCode,
+            ThemeType themeType,
+            ElementType elementType,
+            boolean active,
+            double averageRating
+    ) {
+        return place(name, summary, description, address, regionCode, themeType, elementType, active, averageRating, null);
+    }
+
+    private Place place(
+            String name,
+            String summary,
+            String description,
+            String address,
+            RegionCode regionCode,
+            ThemeType themeType,
+            ElementType elementType,
+            boolean active,
+            double averageRating,
+            String googlePlaceId
+    ) {
         return Place.builder()
                 .name(name)
-                .summary("summary")
-                .description("description")
-                .address("address")
-                .regionCode(RegionCode.SEOUL)
+                .summary(summary)
+                .description(description)
+                .address(address)
+                .regionCode(regionCode)
                 .latitude(37.5665)
                 .longitude(126.9780)
-                .elementType(ElementType.FIRE)
+                .elementType(elementType)
                 .themeType(themeType)
-                .averageRating(0.0)
+                .averageRating(averageRating)
                 .reviewCount(0)
                 .editorPick(false)
                 .active(active)
-                .terrainType("기타")
+                .googlePlaceId(googlePlaceId)
+                .terrainType("terrain")
                 .loveScore(0)
                 .relationshipScore(0)
                 .careerScore(0)
@@ -110,5 +300,29 @@ class PlaceRepositoryTest {
                 .restScore(0)
                 .transitionScore(0)
                 .build();
+    }
+
+    private Specification<Place> searchSpec(
+            String keyword,
+            RegionCode regionCode,
+            ThemeType themeType,
+            ElementType elementType
+    ) {
+        return PlaceSpecifications.active()
+                .and(PlaceSpecifications.keywordContains(keyword))
+                .and(PlaceSpecifications.regionCodeEquals(regionCode))
+                .and(PlaceSpecifications.themeTypeEquals(themeType))
+                .and(PlaceSpecifications.elementTypeEquals(elementType));
+    }
+
+    private PageRequest pageRequest() {
+        return PageRequest.of(0, 20, fixedSort());
+    }
+
+    private Sort fixedSort() {
+        return Sort.by(
+                Sort.Order.desc("averageRating"),
+                Sort.Order.asc("id")
+        );
     }
 }
