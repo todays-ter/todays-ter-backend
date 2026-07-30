@@ -188,13 +188,13 @@ public class ExceptionAdvice extends ResponseEntityExceptionHandler {
         e.getBindingResult().getFieldErrors().forEach(fieldError -> {
             String field = fieldError.getField();
             String message = Optional.ofNullable(fieldError.getDefaultMessage())
-                    .orElse("?좏슚?섏? ?딆? 媛믪엯?덈떎.");
+                    .orElse("유효하지 않은 값입니다.");
             errors.merge(field, message, (a, b) -> a + ", " + b);
         });
         e.getBindingResult().getGlobalErrors().forEach(globalError -> {
             String field = globalError.getObjectName();
             String message = Optional.ofNullable(globalError.getDefaultMessage())
-                    .orElse("?좏슚?섏? ?딆? 媛믪엯?덈떎.");
+                    .orElse("유효하지 않은 값입니다.");
             errors.merge(field, message, (a, b) -> a + ", " + b);
         });
 
