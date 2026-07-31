@@ -1,6 +1,7 @@
 package com.umc.todayter.domain.place.repository;
 
 import com.umc.todayter.domain.place.entity.Place;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -19,4 +20,6 @@ public interface PlaceRepository extends JpaRepository<Place, Long>, JpaSpecific
     List<ThemePlaceCount> countActivePlacesGroupByThemeType();
 
     Optional<Place> findByIdAndActiveTrue(Long id);
+
+    List<Place> findByActiveTrueAndEditorPickTrue(Pageable pageable);
 }

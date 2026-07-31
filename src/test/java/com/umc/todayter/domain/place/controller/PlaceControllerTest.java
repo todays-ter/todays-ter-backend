@@ -1,5 +1,7 @@
 package com.umc.todayter.domain.place.controller;
 
+import com.umc.todayter.domain.place.dto.response.EditorPickItemResponse;
+import com.umc.todayter.domain.place.dto.response.EditorPickResponse;
 import com.umc.todayter.domain.place.dto.response.ElementFilterResponse;
 import com.umc.todayter.domain.place.dto.response.ExploreFiltersResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceListItemResponse;
@@ -10,6 +12,7 @@ import com.umc.todayter.domain.place.dto.response.PlaceSearchPageResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceSearchResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceSearchTypeResponse;
 import com.umc.todayter.domain.place.dto.request.PlaceSearchRequest;
+import com.umc.todayter.domain.place.service.EditorPickService;
 import com.umc.todayter.domain.place.service.PlaceSearchService;
 import com.umc.todayter.domain.place.dto.response.RegionFilterResponse;
 import com.umc.todayter.domain.place.dto.response.ThemeFilterResponse;
@@ -39,6 +42,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -63,6 +67,9 @@ class PlaceControllerTest {
 
     @MockitoBean
     private PlaceSearchService placeSearchService;
+
+    @MockitoBean
+    private EditorPickService editorPickService;
 
     @MockitoBean
     private PlaceThumbnailService placeThumbnailService;
@@ -230,6 +237,91 @@ class PlaceControllerTest {
                 .andExpect(jsonPath("$.result.regions").isArray())
                 .andExpect(jsonPath("$.result.themes").isArray())
                 .andExpect(jsonPath("$.result.elements").isArray());
+    }
+
+    @Test
+    void getEditorPicks_withoutLimitUsesDefaultLimitAndReturnsApiResponseWithoutAccessToken() throws Exception {
+        when(editorPickService.getEditorPicks(org.mockito.ArgumentMatchers.eq(3), org.mockito.ArgumentMatchers.eq("http://localhost")))
+                .thenReturn(new EditorPickResponse(List.of(new EditorPickItemResponse(
+                        1L,
+                        "Gyeongbokgung",
+                        "http://localhost/places/1/thumbnail",
+                        "summary",
+                        "description",
+                        new PlaceSearchTypeResponse("EARTH", "earth"),
+                        new PlaceSearchTypeResponse("WEALTH", "wealth"),
+                        4.7
+                ))));
+
+        mockMvc.perform(get("/places/editor-picks"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isSuccess").value(true))
+                .andExpect(jsonPath("$.code").value("COMMON200"))
+                .andExpect(jsonPath("$.result.content[0].placeId").value(1))
+                .andExpect(jsonPath("$.result.content[0].placeName").value("Gyeongbokgung"))
+                .andExpect(jsonPath("$.result.content[0].thumbnailUrl").value("http://localhost/places/1/thumbnail"))
+                .andExpect(jsonPath("$.result.content[0].summary").value("summary"))
+                .andExpect(jsonPath("$.result.content[0].description").value("description"))
+                .andExpect(jsonPath("$.result.content[0].element.code").value("EARTH"))
+                .andExpect(jsonPath("$.result.content[0].element.name").value("earth"))
+                .andExpect(jsonPath("$.result.content[0].theme.code").value("WEALTH"))
+                .andExpect(jsonPath("$.result.content[0].theme.name").value("wealth"))
+                .andExpect(jsonPath("$.result.content[0].averageRating").value(4.7));
+
+        ArgumentCaptor<Integer> limitCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(editorPickService).getEditorPicks(limitCaptor.capture(), org.mockito.ArgumentMatchers.eq("http://localhost"));
+        assertThat(limitCaptor.getValue()).isEqualTo(3);
+    }
+
+    @Test
+    void getEditorPicks_withLimitOnePassesLimitToService() throws Exception {
+        when(editorPickService.getEditorPicks(org.mockito.ArgumentMatchers.eq(1), org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(new EditorPickResponse(List.of()));
+
+        mockMvc.perform(get("/places/editor-picks").param("limit", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.content").isEmpty());
+
+        verify(editorPickService).getEditorPicks(org.mockito.ArgumentMatchers.eq(1), org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void getEditorPicks_withLimitTenPassesLimitToService() throws Exception {
+        when(editorPickService.getEditorPicks(org.mockito.ArgumentMatchers.eq(10), org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(new EditorPickResponse(List.of()));
+
+        mockMvc.perform(get("/places/editor-picks").param("limit", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.content").isEmpty());
+
+        verify(editorPickService).getEditorPicks(org.mockito.ArgumentMatchers.eq(10), org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void getEditorPicks_returnsOkWithEmptyContent() throws Exception {
+        when(editorPickService.getEditorPicks(org.mockito.ArgumentMatchers.eq(3), org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(new EditorPickResponse(List.of()));
+
+        mockMvc.perform(get("/places/editor-picks"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.content").isEmpty());
+    }
+
+    @Test
+    void getEditorPicks_invalidLimitReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/places/editor-picks").param("limit", "0"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON400"));
+
+        mockMvc.perform(get("/places/editor-picks").param("limit", "11"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON400"));
+
+        mockMvc.perform(get("/places/editor-picks").param("limit", "abc"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON400"));
+
+        verify(editorPickService, never()).getEditorPicks(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString());
     }
 
     @Test

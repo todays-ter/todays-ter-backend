@@ -1,9 +1,11 @@
 package com.umc.todayter.domain.place.controller;
 
 import com.umc.todayter.domain.place.dto.request.PlaceSearchRequest;
+import com.umc.todayter.domain.place.dto.response.EditorPickResponse;
 import com.umc.todayter.domain.place.dto.response.ExploreFiltersResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceListResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceSearchResponse;
+import com.umc.todayter.domain.place.service.EditorPickService;
 import com.umc.todayter.domain.place.service.PlaceSearchService;
 import com.umc.todayter.domain.place.service.PlaceService;
 import com.umc.todayter.domain.place.service.PlaceThumbnailService;
@@ -14,6 +16,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
@@ -36,6 +40,7 @@ public class PlaceController {
 
     private final PlaceService placeService;
     private final PlaceSearchService placeSearchService;
+    private final EditorPickService editorPickService;
     private final PlaceThumbnailService placeThumbnailService;
 
     @Operation(summary = "장소 검색 목록 조회", description = "검색어, 지역, 테마, 오행 조건으로 활성 장소 목록을 조회합니다.")
@@ -59,6 +64,25 @@ public class PlaceController {
     @GetMapping("/explore-filters")
     public ResponseEntity<ApiResponse<ExploreFiltersResponse>> getExploreFilters() {
         ExploreFiltersResponse result = placeService.getExploreFilters();
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.onSuccess(result, SuccessCode.OK));
+    }
+
+    @Operation(summary = "에디터 오행 픽 목록 조회", description = "에디터가 선정한 활성 장소 목록을 조회합니다.")
+    @SecurityRequirements
+    @GetMapping("/editor-picks")
+    public ResponseEntity<ApiResponse<EditorPickResponse>> getEditorPicks(
+            @RequestParam(defaultValue = "3")
+            @Min(value = 1, message = "limit은 1 이상이어야 합니다.")
+            @Max(value = 10, message = "limit은 10 이하여야 합니다.")
+            Integer limit
+    ) {
+        String contextPathUrl = ServletUriComponentsBuilder
+                .fromCurrentContextPath()
+                .toUriString();
+        EditorPickResponse result = editorPickService.getEditorPicks(limit, contextPathUrl);
 
         return ResponseEntity
                 .status(HttpStatus.OK)
