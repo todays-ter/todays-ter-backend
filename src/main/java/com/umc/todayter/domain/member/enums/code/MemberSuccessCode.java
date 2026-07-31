@@ -10,7 +10,8 @@ import org.springframework.http.HttpStatus;
 public enum MemberSuccessCode implements BaseCode {
 
     SAJU_RETRIEVED(HttpStatus.OK, "MEMBER200_1", "사주 정보를 조회했습니다."),
-    MEMBER_WITHDRAWN(HttpStatus.OK, "MEMBER200_2", "회원 탈퇴가 완료되었습니다.")
+    SAJU_UPDATED(HttpStatus.OK, "MEMBER200_2", "사주 정보가 수정되었습니다."),
+    MEMBER_WITHDRAWN(HttpStatus.OK, "MEMBER200_3", "회원 탈퇴가 완료되었습니다.")
     ;
 
     private final HttpStatus httpStatus;

@@ -1,5 +1,6 @@
 package com.umc.todayter.domain.member.controller;
 
+import com.umc.todayter.domain.member.dto.request.MemberSajuUpdateRequest;
 import com.umc.todayter.domain.member.dto.request.MemberWithdrawRequest;
 import com.umc.todayter.domain.member.dto.response.MemberSajuResponse;
 import com.umc.todayter.domain.member.enums.code.MemberSuccessCode;
@@ -43,6 +44,27 @@ public class MemberController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(ApiResponse.onSuccess(result, MemberSuccessCode.SAJU_RETRIEVED));
+    }
+
+    @Operation(
+            summary = "회원 사주 정보 수정",
+            description = """
+                현재 로그인한 회원의 사주 정보를 수정합니다.
+                기존 방문 및 저장 기록은 유지되며,
+                이후 생성되는 추천과 리포트부터 변경된 정보가 적용됩니다.
+                """
+    )
+    @PutMapping("/me/saju")
+    public ResponseEntity<ApiResponse<MemberSajuResponse>> updateSaju(
+            @Valid @RequestBody MemberSajuUpdateRequest request
+    ) {
+        Long memberId = SecurityUtil.getCurrentMemberId();
+
+        MemberSajuResponse result = memberSajuService.updateSaju(memberId, request);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.onSuccess(result, MemberSuccessCode.SAJU_UPDATED));
     }
 
     @Operation(

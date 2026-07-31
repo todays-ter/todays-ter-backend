@@ -1,5 +1,6 @@
 package com.umc.todayter.domain.member.service;
 
+import com.umc.todayter.domain.member.dto.request.MemberSajuUpdateRequest;
 import com.umc.todayter.domain.member.dto.response.MemberSajuResponse;
 import com.umc.todayter.domain.member.exception.MemberErrorCode;
 import com.umc.todayter.domain.onboarding.entity.Onboarding;
@@ -18,14 +19,31 @@ public class MemberSajuService {
     private final MemberService memberService;
 
     public MemberSajuResponse getSaju(Long memberId) {
-        // 탈퇴 회원 또는 존재하지 않는 회원 접근 방지
         memberService.getActiveMember(memberId);
+        Onboarding onboarding = getMemberSajuOnboarding(memberId);
 
-        Onboarding onboarding = onboardingRepository
+        return MemberSajuResponse.from(onboarding);
+    }
+
+    @Transactional
+    public MemberSajuResponse updateSaju(Long memberId, MemberSajuUpdateRequest request) {
+        memberService.getActiveMember(memberId);
+        Onboarding onboarding = getMemberSajuOnboarding(memberId);
+
+        onboarding.updateSaju(
+                request.calendarType(),
+                request.birthDate(),
+                request.birthTime(),
+                request.birthTimeUnknown()
+        );
+
+        return MemberSajuResponse.from(onboarding);
+    }
+
+    private Onboarding getMemberSajuOnboarding(Long memberId) {
+        return onboardingRepository
                 .findByMemberId(memberId)
                 .filter(Onboarding::hasSajuInformation)
                 .orElseThrow(() -> new CustomException(MemberErrorCode.SAJU_NOT_FOUND));
-
-        return MemberSajuResponse.from(onboarding);
     }
 }
