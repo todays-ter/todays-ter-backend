@@ -79,6 +79,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/places",
+                                "/places/editor-picks",
                                 "/places/explore-filters",
                                 "/places/*/thumbnail"
                         ).permitAll()

@@ -15,6 +15,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.context.TestPropertySource;
 
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -63,6 +64,65 @@ class PlaceRepositoryTest {
 
         assertThat(placeRepository.findByIdAndActiveTrue(activePlace.getId())).contains(activePlace);
         assertThat(placeRepository.findByIdAndActiveTrue(inactivePlace.getId())).isEmpty();
+    }
+
+    @Test
+    void findByActiveTrueAndEditorPickTrue_returnsOnlyActiveEditorPicks() {
+        placeRepository.save(place("editor-active", ThemeType.LOVE, true, true, 4.0));
+        placeRepository.save(place("editor-inactive", ThemeType.LOVE, false, true, 5.0));
+        placeRepository.save(place("not-editor-active", ThemeType.LOVE, true, false, 5.0));
+        placeRepository.save(place("not-editor-inactive", ThemeType.LOVE, false, false, 5.0));
+        placeRepository.flush();
+
+        List<Place> result = placeRepository.findByActiveTrueAndEditorPickTrue(PageRequest.of(0, 10, fixedSort()));
+
+        assertThat(result).extracting(Place::getName).containsExactly("editor-active");
+    }
+
+    @Test
+    void findByActiveTrueAndEditorPickTrue_sortsByAverageRatingDescAndIdAsc() {
+        Place low = placeRepository.save(place("editor-sort-low", ThemeType.LOVE, true, true, 3.0));
+        Place highFirst = placeRepository.save(place("editor-sort-high-first", ThemeType.LOVE, true, true, 5.0));
+        Place highSecond = placeRepository.save(place("editor-sort-high-second", ThemeType.LOVE, true, true, 5.0));
+        placeRepository.flush();
+
+        List<Place> result = placeRepository.findByActiveTrueAndEditorPickTrue(PageRequest.of(0, 10, fixedSort()));
+
+        assertThat(highFirst.getId()).isLessThan(highSecond.getId());
+        assertThat(result)
+                .extracting(Place::getId)
+                .containsExactly(highFirst.getId(), highSecond.getId(), low.getId());
+    }
+
+    @Test
+    void findByActiveTrueAndEditorPickTrue_limitsResults() {
+        placeRepository.save(place("editor-limit-a", ThemeType.LOVE, true, true, 4.9));
+        placeRepository.save(place("editor-limit-b", ThemeType.LOVE, true, true, 4.7));
+        placeRepository.save(place("editor-limit-c", ThemeType.LOVE, true, true, 4.5));
+        placeRepository.save(place("editor-limit-d", ThemeType.LOVE, true, true, 4.0));
+        placeRepository.flush();
+
+        List<Place> oneResult = placeRepository.findByActiveTrueAndEditorPickTrue(PageRequest.of(0, 1, fixedSort()));
+        List<Place> threeResults = placeRepository.findByActiveTrueAndEditorPickTrue(PageRequest.of(0, 3, fixedSort()));
+
+        assertThat(oneResult).hasSize(1);
+        assertThat(oneResult).extracting(Place::getName).containsExactly("editor-limit-a");
+        assertThat(threeResults).hasSize(3);
+        assertThat(threeResults)
+                .extracting(Place::getName)
+                .containsExactly("editor-limit-a", "editor-limit-b", "editor-limit-c")
+                .doesNotContain("editor-limit-d");
+    }
+
+    @Test
+    void findByActiveTrueAndEditorPickTrue_returnsEmptyListWhenNoResult() {
+        placeRepository.save(place("editor-empty-inactive", ThemeType.LOVE, false, true, 5.0));
+        placeRepository.save(place("editor-empty-not-pick", ThemeType.LOVE, true, false, 5.0));
+        placeRepository.flush();
+
+        List<Place> result = placeRepository.findByActiveTrueAndEditorPickTrue(PageRequest.of(0, 3, fixedSort()));
+
+        assertThat(result).isEmpty();
     }
 
     @Test
@@ -251,6 +311,10 @@ class PlaceRepositoryTest {
         return place(name, "summary", "description", "address", RegionCode.SEOUL, themeType, ElementType.FIRE, active, 0.0, googlePlaceId);
     }
 
+    private Place place(String name, ThemeType themeType, boolean active, boolean editorPick, double averageRating) {
+        return place(name, "summary", "description", "address", RegionCode.SEOUL, themeType, ElementType.FIRE, active, editorPick, averageRating, null);
+    }
+
     private Place place(
             String name,
             String summary,
@@ -277,6 +341,22 @@ class PlaceRepositoryTest {
             double averageRating,
             String googlePlaceId
     ) {
+        return place(name, summary, description, address, regionCode, themeType, elementType, active, false, averageRating, googlePlaceId);
+    }
+
+    private Place place(
+            String name,
+            String summary,
+            String description,
+            String address,
+            RegionCode regionCode,
+            ThemeType themeType,
+            ElementType elementType,
+            boolean active,
+            boolean editorPick,
+            double averageRating,
+            String googlePlaceId
+    ) {
         return Place.builder()
                 .name(name)
                 .summary(summary)
@@ -289,7 +369,7 @@ class PlaceRepositoryTest {
                 .themeType(themeType)
                 .averageRating(averageRating)
                 .reviewCount(0)
-                .editorPick(false)
+                .editorPick(editorPick)
                 .active(active)
                 .googlePlaceId(googlePlaceId)
                 .terrainType("terrain")
