@@ -15,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class MemberService {
 
     private final MemberRepository memberRepository;
-    private final MemberCreationService memberCreationService;
 
     public Member getActiveMember(Long memberId) {
         return memberRepository
@@ -24,16 +23,14 @@ public class MemberService {
     }
 
     // 개발용 토큰 발급 API에서 사용
+    @Transactional
     public Member findOrCreateDeveloperMember(String email, String nickname) {
         return memberRepository
                 .findFirstByEmailAndStatusOrderByIdAsc(email, MemberStatus.ACTIVE)
-                .orElseGet(() -> {
-                    Long memberId = memberCreationService.createDeveloperMember(
-                            email,
-                            nickname
-                    );
-
-                    return getActiveMember(memberId);
-                });
+                .orElseGet(() ->
+                        memberRepository.save(
+                                Member.create(email, nickname)
+                        )
+                );
     }
 }

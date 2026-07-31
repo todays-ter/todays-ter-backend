@@ -3,9 +3,11 @@ package com.umc.todayter.domain.auth.controller;
 import com.umc.todayter.domain.auth.dto.KakaoLoginResult;
 import com.umc.todayter.domain.auth.dto.request.KakaoLoginRequest;
 import com.umc.todayter.domain.auth.dto.response.KakaoLoginResponse;
+import com.umc.todayter.domain.auth.dto.response.TokenResponse;
 import com.umc.todayter.domain.auth.enums.code.AuthSuccessCode;
 import com.umc.todayter.domain.auth.service.AuthTokenResult;
 import com.umc.todayter.domain.auth.service.KakaoAuthService;
+import com.umc.todayter.domain.auth.service.TokenReissueService;
 import com.umc.todayter.global.apiPayload.response.ApiResponse;
 import com.umc.todayter.global.util.AuthCookieUtil;
 import com.umc.todayter.global.util.GuestCookieUtil;
@@ -27,6 +29,7 @@ public class AuthController {
 
     private final KakaoAuthService kakaoAuthService;
     private final AuthCookieUtil authCookieUtil;
+    private final TokenReissueService tokenReissueService;
 
     @Operation(
             summary = "카카오 소셜 로그인",
@@ -66,5 +69,35 @@ public class AuthController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(ApiResponse.onSuccess(responseBody, AuthSuccessCode.KAKAO_LOGIN_SUCCESS));
+    }
+
+    @Operation(
+            summary = "토큰 재발급",
+            description = """
+                    HttpOnly 쿠키의 Refresh Token을 검증한 뒤
+                    새로운 Access Token과 Refresh Token을 발급합니다.
+                    기존 Refresh Token은 재사용할 수 없습니다.
+                    """
+    )
+    @SecurityRequirements
+    @PostMapping("/reissue")
+    public ResponseEntity<ApiResponse<TokenResponse>> reissue(
+            @CookieValue(
+                    name = AuthCookieUtil.REFRESH_COOKIE_NAME,
+                    required = false
+            ) String refreshToken,
+            HttpServletResponse response
+    ) {
+        AuthTokenResult result = tokenReissueService.reissue(refreshToken);
+
+        authCookieUtil.addRefreshTokenCookie(
+                response,
+                result.refreshToken(),
+                result.refreshMaxAgeSeconds()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.onSuccess(result.response(), AuthSuccessCode.TOKEN_REISSUED));
     }
 }
