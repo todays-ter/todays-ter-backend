@@ -1,11 +1,12 @@
 package com.umc.todayter.domain.fortune.entity;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import com.umc.todayter.domain.fortune.enums.FortuneReportStatus;
 import com.umc.todayter.domain.fortune.enums.FortuneReportStep;
 import com.umc.todayter.domain.onboarding.entity.Onboarding;
 import com.umc.todayter.domain.onboarding.enums.CalendarType;
 import com.umc.todayter.domain.onboarding.enums.ConcernType;
+import com.umc.todayter.domain.onboarding.enums.Gender;
 import com.umc.todayter.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -45,6 +46,10 @@ public class FortuneReport extends BaseEntity {
     private Long onboardingId;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "gender", length = 10)
+    private Gender gender;
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "calendar_type", nullable = false, length = 10)
     private CalendarType calendarType;
 
@@ -77,7 +82,7 @@ public class FortuneReport extends BaseEntity {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "manse_data", columnDefinition = "json")
-    private JsonNode manseData;
+    private String manseData;
 
     @Column(name = "report_content", columnDefinition = "LONGTEXT")
     private String reportContent;
@@ -118,6 +123,7 @@ public class FortuneReport extends BaseEntity {
     private static FortuneReport createFrom(Onboarding onboarding) {
         FortuneReport report = new FortuneReport();
         report.onboardingId = onboarding.getId();
+        report.gender = onboarding.getGender();
         report.calendarType = onboarding.getCalendarType();
         report.birthDate = onboarding.getBirthDate();
         report.birthTime = onboarding.getBirthTime();
@@ -168,7 +174,7 @@ public class FortuneReport extends BaseEntity {
     }
 
     public void saveManseData(JsonNode manseData) {
-        this.manseData = manseData;
+        this.manseData = manseData == null ? null : manseData.toString();
         advance(FortuneReportStep.MANSE_DATA_CREATED, 40);
     }
 

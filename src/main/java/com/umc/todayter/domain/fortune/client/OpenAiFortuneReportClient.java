@@ -1,6 +1,6 @@
 package com.umc.todayter.domain.fortune.client;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import com.umc.todayter.domain.fortune.config.OpenAiReportProperties;
 import com.umc.todayter.domain.fortune.exception.FortuneReportGenerationException;
 import org.springframework.beans.factory.annotation.Qualifier;

@@ -1,6 +1,6 @@
 package com.umc.todayter.domain.fortune.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import com.umc.todayter.domain.fortune.dto.internal.FortuneReportGenerationContext;
 import com.umc.todayter.domain.fortune.entity.FortuneReport;
 import com.umc.todayter.domain.fortune.enums.FortuneReportStep;
@@ -58,6 +58,7 @@ public class FortuneReportProgressService {
         return new FortuneReportGenerationContext(
                 report.getId(),
                 report.getMemberId(),
+                report.getGender(),
                 report.getCalendarType(),
                 report.getBirthDate(),
                 report.getBirthTime(),
