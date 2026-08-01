@@ -1,6 +1,6 @@
 package com.umc.todayter.global.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.umc.todayter.global.apiPayload.response.ApiResponse;
 import com.umc.todayter.global.apiPayload.response.ErrorCode;
 import com.umc.todayter.global.security.jwt.JwtAuthenticationFilter;
