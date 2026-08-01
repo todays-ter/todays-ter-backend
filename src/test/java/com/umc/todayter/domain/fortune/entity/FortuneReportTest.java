@@ -54,6 +54,7 @@ class FortuneReportTest {
 
     private FortuneReport createReport() {
         Onboarding onboarding = mock(Onboarding.class);
+        when(onboarding.getId()).thenReturn(10L);
         when(onboarding.getCalendarType()).thenReturn(CalendarType.SOLAR);
         when(onboarding.getGender()).thenReturn(Gender.FEMALE);
         when(onboarding.getBirthDate()).thenReturn(LocalDate.of(2000, 1, 1));
