@@ -4,9 +4,6 @@ import tools.jackson.databind.JsonNode;
 import com.umc.todayter.domain.fortune.enums.FortuneReportStatus;
 import com.umc.todayter.domain.fortune.enums.FortuneReportStep;
 import com.umc.todayter.domain.onboarding.entity.Onboarding;
-import com.umc.todayter.domain.onboarding.enums.CalendarType;
-import com.umc.todayter.domain.onboarding.enums.ConcernType;
-import com.umc.todayter.domain.onboarding.enums.Gender;
 import com.umc.todayter.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -15,11 +12,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
 @Getter
@@ -44,27 +37,6 @@ public class FortuneReport extends BaseEntity {
 
     @Column(name = "onboarding_id", nullable = false)
     private Long onboardingId;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "gender", length = 10)
-    private Gender gender;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "calendar_type", nullable = false, length = 10)
-    private CalendarType calendarType;
-
-    @Column(name = "birth_date", nullable = false)
-    private LocalDate birthDate;
-
-    @Column(name = "birth_time")
-    private LocalTime birthTime;
-
-    @Column(name = "birth_time_unknown", nullable = false)
-    private boolean birthTimeUnknown;
-
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "concern_types", columnDefinition = "json", nullable = false)
-    private List<ConcernType> concernTypes = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -121,16 +93,13 @@ public class FortuneReport extends BaseEntity {
     }
 
     private static FortuneReport createFrom(Onboarding onboarding) {
+        if (onboarding == null || onboarding.getId() == null) {
+            throw new IllegalArgumentException("저장된 온보딩 정보는 필수입니다.");
+        }
         FortuneReport report = new FortuneReport();
         report.onboardingId = onboarding.getId();
-        report.gender = onboarding.getGender();
-        report.calendarType = onboarding.getCalendarType();
-        report.birthDate = onboarding.getBirthDate();
-        report.birthTime = onboarding.getBirthTime();
-        report.birthTimeUnknown = onboarding.isBirthTimeUnknown();
-        report.concernTypes = new ArrayList<>(onboarding.getConcernTypes());
         report.status = FortuneReportStatus.PROCESSING;
-        report.currentStep = FortuneReportStep.QUEUED;
+        report.currentStep = FortuneReportStep.WAITING;
         report.progress = 0;
         report.retryCount = 0;
         return report;
@@ -146,7 +115,7 @@ public class FortuneReport extends BaseEntity {
 
     public void startAttempt() {
         status = FortuneReportStatus.PROCESSING;
-        currentStep = FortuneReportStep.QUEUED;
+        currentStep = FortuneReportStep.WAITING;
         progress = 0;
         failureCode = null;
         failureMessage = null;

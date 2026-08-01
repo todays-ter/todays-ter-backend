@@ -7,6 +7,8 @@ import com.umc.todayter.domain.fortune.dto.internal.FortuneReportGenerationConte
 import com.umc.todayter.domain.fortune.entity.FortuneReport;
 import com.umc.todayter.domain.fortune.enums.FortuneReportStep;
 import com.umc.todayter.domain.fortune.repository.FortuneReportRepository;
+import com.umc.todayter.domain.onboarding.entity.Onboarding;
+import com.umc.todayter.domain.onboarding.repository.OnboardingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -17,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class FortuneReportProgressService {
 
     private final FortuneReportRepository fortuneReportRepository;
+    private final OnboardingRepository onboardingRepository;
     private final ObjectMapper objectMapper;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -63,15 +66,21 @@ public class FortuneReportProgressService {
     }
 
     private FortuneReportGenerationContext toContext(FortuneReport report) {
+        Onboarding onboarding = onboardingRepository.findById(report.getOnboardingId())
+                .orElseThrow(() -> new IllegalStateException(
+                        "리포트의 온보딩 정보를 찾을 수 없습니다: " + report.getOnboardingId()
+                ));
         return new FortuneReportGenerationContext(
                 report.getId(),
                 report.getMemberId(),
-                report.getGender(),
-                report.getCalendarType(),
-                report.getBirthDate(),
-                report.getBirthTime(),
-                report.isBirthTimeUnknown(),
-                java.util.List.copyOf(report.getConcernTypes()),
+                onboarding.getGender(),
+                onboarding.getCalendarType(),
+                onboarding.getBirthDate(),
+                onboarding.getBirthTime(),
+                onboarding.isBirthTimeUnknown(),
+                onboarding.getConcernTypes() == null
+                        ? java.util.List.of()
+                        : java.util.List.copyOf(onboarding.getConcernTypes()),
                 parseManseData(report.getManseData())
         );
     }
