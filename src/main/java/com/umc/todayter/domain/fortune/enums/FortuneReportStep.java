@@ -3,7 +3,7 @@ package com.umc.todayter.domain.fortune.enums;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum FortuneReportStep {
-    QUEUED,
+    WAITING,
     BIRTH_DATA_PREPARED,
     MANSE_DATA_CREATED,
     PROMPT_PREPARED,

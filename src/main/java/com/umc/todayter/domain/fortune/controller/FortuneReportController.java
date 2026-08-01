@@ -2,6 +2,8 @@ package com.umc.todayter.domain.fortune.controller;
 
 import com.umc.todayter.domain.fortune.dto.response.FortuneReportCreateResponse;
 import com.umc.todayter.domain.fortune.dto.response.FortuneReportStatusResponse;
+import com.umc.todayter.domain.fortune.dto.response.FortuneReportDetailResponse;
+import com.umc.todayter.domain.fortune.dto.response.FortuneReportSummaryResponse;
 import com.umc.todayter.domain.fortune.service.FortuneReportService;
 import com.umc.todayter.global.apiPayload.response.ApiResponse;
 import com.umc.todayter.global.apiPayload.response.SuccessCode;
@@ -45,6 +47,33 @@ public class FortuneReportController {
     ) {
         FortuneReportStatusResponse result = fortuneReportService.getStatus(
                 SecurityUtil.getCurrentMemberIdOrNull(), guestId, reportId
+        );
+        return ResponseEntity.ok(ApiResponse.onSuccess(result, SuccessCode.OK));
+    }
+
+    @Operation(summary = "기본 리포트 조회", description = "완료된 리포트의 기본 요약과 오행 분포를 조회합니다.")
+    @SecurityRequirements
+    @GetMapping("/{reportId}")
+    public ResponseEntity<ApiResponse<FortuneReportSummaryResponse>> getSummary(
+            @CookieValue(name = GuestCookieUtil.COOKIE_NAME, required = false) String guestId,
+            @PathVariable Long reportId
+    ) {
+        FortuneReportSummaryResponse result = fortuneReportService.getSummary(
+                SecurityUtil.getCurrentMemberIdOrNull(), guestId, reportId
+        );
+        return ResponseEntity.ok(ApiResponse.onSuccess(result, SuccessCode.OK));
+    }
+
+    @Operation(summary = "상세 리포트 조회", description = "카테고리별 상세 분석을 조회합니다.")
+    @SecurityRequirements
+    @GetMapping("/{reportId}/details")
+    public ResponseEntity<ApiResponse<FortuneReportDetailResponse>> getDetail(
+            @CookieValue(name = GuestCookieUtil.COOKIE_NAME, required = false) String guestId,
+            @PathVariable Long reportId,
+            @RequestParam String category
+    ) {
+        FortuneReportDetailResponse result = fortuneReportService.getDetail(
+                SecurityUtil.getCurrentMemberIdOrNull(), guestId, reportId, category
         );
         return ResponseEntity.ok(ApiResponse.onSuccess(result, SuccessCode.OK));
     }

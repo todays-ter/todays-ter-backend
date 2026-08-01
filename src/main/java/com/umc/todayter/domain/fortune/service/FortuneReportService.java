@@ -1,10 +1,13 @@
 package com.umc.todayter.domain.fortune.service;
 
-import com.umc.todayter.domain.fortune.config.FortuneReportProperties;
+import com.umc.todayter.global.config.ablecityProperties.FortuneReportProperties;
 import com.umc.todayter.domain.fortune.dto.response.FortuneReportCreateResponse;
 import com.umc.todayter.domain.fortune.dto.response.FortuneReportStatusResponse;
+import com.umc.todayter.domain.fortune.dto.response.FortuneReportDetailResponse;
+import com.umc.todayter.domain.fortune.dto.response.FortuneReportSummaryResponse;
 import com.umc.todayter.domain.fortune.entity.FortuneReport;
 import com.umc.todayter.domain.fortune.enums.FortuneReportStatus;
+import com.umc.todayter.domain.fortune.enums.FortuneReportCategory;
 import com.umc.todayter.domain.fortune.event.FortuneReportGenerationRequestedEvent;
 import com.umc.todayter.domain.fortune.exception.code.FortuneReportErrorCode;
 import com.umc.todayter.domain.fortune.repository.FortuneReportRepository;
@@ -32,6 +35,8 @@ public class FortuneReportService {
     private final MemberService memberService;
     private final FortuneReportProperties properties;
     private final ApplicationEventPublisher eventPublisher;
+    private final FortuneReportResultParser resultParser;
+    private final ComplementActionProvider complementActionProvider;
 
     @Transactional
     public FortuneReportCreateResponse create(Long memberId, String guestId) {
@@ -94,6 +99,55 @@ public class FortuneReportService {
                 ? getMemberOwnedReport(memberId, reportId)
                 : getGuestOwnedReport(getValidGuestSession(guestId).getId(), reportId);
         return FortuneReportStatusResponse.from(report, properties.maxRetries());
+    }
+
+    public FortuneReportSummaryResponse getSummary(Long memberId, String guestId, Long reportId) {
+        FortuneReport report = getCompletedOwnedReport(memberId, guestId, reportId);
+        return new FortuneReportSummaryResponse(
+                report.getId(),
+                resultParser.parseBasic(report.getReportContent())
+        );
+    }
+
+    public FortuneReportDetailResponse getDetail(
+            Long memberId,
+            String guestId,
+            Long reportId,
+            String categoryValue
+    ) {
+        FortuneReportCategory category = FortuneReportCategory.from(categoryValue);
+        if (category == null) {
+            throw new CustomException(FortuneReportErrorCode.INVALID_REPORT_CATEGORY);
+        }
+
+        FortuneReport report = getCompletedOwnedReport(memberId, guestId, reportId);
+        FortuneReportResultParser.ParsedReport parsed = resultParser.parse(
+                report.getReportContent(), report.getManseData()
+        );
+        var detail = parsed.details().stream()
+                .filter(section -> category.name().equals(section.code()))
+                .findFirst()
+                .orElseThrow(() -> new CustomException(FortuneReportErrorCode.REPORT_CONTENT_UNAVAILABLE));
+
+        var actionGuide = category == FortuneReportCategory.GENERAL
+                ? complementActionProvider.select(parsed.complementElement(), report.getId())
+                : null;
+
+        return new FortuneReportDetailResponse(report.getId(), category, detail, actionGuide);
+    }
+
+    private FortuneReport getCompletedOwnedReport(Long memberId, String guestId, Long reportId) {
+        FortuneReport report = memberId != null
+                ? getMemberOwnedReport(memberId, reportId)
+                : getGuestOwnedReport(getValidGuestSession(guestId).getId(), reportId);
+
+        if (report.getStatus() != FortuneReportStatus.COMPLETED) {
+            throw new CustomException(FortuneReportErrorCode.REPORT_NOT_COMPLETED);
+        }
+        if (report.getReportContent() == null || report.getReportContent().isBlank()) {
+            throw new CustomException(FortuneReportErrorCode.REPORT_CONTENT_UNAVAILABLE);
+        }
+        return report;
     }
 
     @Transactional
