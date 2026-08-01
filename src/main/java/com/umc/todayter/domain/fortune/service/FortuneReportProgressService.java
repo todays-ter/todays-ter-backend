@@ -1,6 +1,8 @@
 package com.umc.todayter.domain.fortune.service;
 
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
 import com.umc.todayter.domain.fortune.dto.internal.FortuneReportGenerationContext;
 import com.umc.todayter.domain.fortune.entity.FortuneReport;
 import com.umc.todayter.domain.fortune.enums.FortuneReportStep;
@@ -15,12 +17,18 @@ import org.springframework.transaction.annotation.Transactional;
 public class FortuneReportProgressService {
 
     private final FortuneReportRepository fortuneReportRepository;
+    private final ObjectMapper objectMapper;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public FortuneReportGenerationContext start(Long reportId) {
         FortuneReport report = getReport(reportId);
         report.startAttempt();
-        report.advance(FortuneReportStep.BIRTH_DATA_PREPARED, 20);
+        report.advance(
+                report.getManseData() == null
+                        ? FortuneReportStep.BIRTH_DATA_PREPARED
+                        : FortuneReportStep.MANSE_DATA_CREATED,
+                report.getManseData() == null ? 20 : 40
+        );
         return toContext(report);
     }
 
@@ -63,7 +71,19 @@ public class FortuneReportProgressService {
                 report.getBirthDate(),
                 report.getBirthTime(),
                 report.isBirthTimeUnknown(),
-                java.util.List.copyOf(report.getConcernTypes())
+                java.util.List.copyOf(report.getConcernTypes()),
+                parseManseData(report.getManseData())
         );
+    }
+
+    private JsonNode parseManseData(String manseData) {
+        if (manseData == null || manseData.isBlank()) {
+            return null;
+        }
+        try {
+            return objectMapper.readTree(manseData);
+        } catch (JacksonException e) {
+            throw new IllegalStateException("저장된 만세력 정보를 읽을 수 없습니다.", e);
+        }
     }
 }

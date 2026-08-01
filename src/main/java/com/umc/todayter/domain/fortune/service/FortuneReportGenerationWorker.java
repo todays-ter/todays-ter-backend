@@ -23,8 +23,13 @@ public class FortuneReportGenerationWorker {
         try {
             FortuneReportGenerationContext context = progressService.start(reportId);
 
-            JsonNode manseData = ablecityManseClient.calculate(context);
-            progressService.saveManseData(reportId, manseData);
+            JsonNode manseData = context.cachedManseData();
+            if (manseData == null) {
+                manseData = ablecityManseClient.calculate(context);
+                progressService.saveManseData(reportId, manseData);
+            } else {
+                log.info("저장된 만세력 정보를 재사용합니다. reportId={}", reportId);
+            }
 
             String prompt = promptProvider.create(context, manseData);
             progressService.markPromptPrepared(reportId);

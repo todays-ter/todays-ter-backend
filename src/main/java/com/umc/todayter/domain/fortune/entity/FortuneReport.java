@@ -157,7 +157,6 @@ public class FortuneReport extends BaseEntity {
 
     public void prepareRetry() {
         retryCount++;
-        manseData = null;
         reportContent = null;
         startAttempt();
     }
