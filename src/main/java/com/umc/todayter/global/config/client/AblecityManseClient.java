@@ -122,6 +122,7 @@ public class AblecityManseClient {
     private void removeUnknownBirthTimeFields(JsonNode data) {
         if (data.isObject()) {
             ((ObjectNode) data).put("birth_time_unknown", true);
+            ((ObjectNode) data).remove("hour");
         }
         JsonNode saju = data.path("saju");
         if (saju.isObject()) {
