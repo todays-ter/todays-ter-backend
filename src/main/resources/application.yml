@@ -48,7 +48,7 @@ google:
     read-timeout: 5s
 
 fortune-report:
-  max-retries: ${FORTUNE_REPORT_MAX_RETRIES:3}
+  max-retries: ${FORTUNE_REPORT_MAX_RETRIES:10}
   ablecity:
     base-url: ${ABLECITY_API_BASE_URL:https://api.ablecity.kr}
     api-key: ${ABLECITY_API_KEY:}

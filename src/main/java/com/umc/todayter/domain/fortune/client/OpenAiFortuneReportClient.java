@@ -3,16 +3,18 @@ package com.umc.todayter.domain.fortune.client;
 import tools.jackson.databind.JsonNode;
 import com.umc.todayter.domain.fortune.config.OpenAiReportProperties;
 import com.umc.todayter.domain.fortune.exception.FortuneReportGenerationException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
-import java.util.List;
 import java.util.Map;
 
 @Component
+@Slf4j
 public class OpenAiFortuneReportClient {
 
     private final RestClient restClient;
@@ -34,8 +36,6 @@ public class OpenAiFortuneReportClient {
         Map<String, Object> request = Map.of(
                 "model", properties.model(),
                 "input", prompt,
-                "reasoning", Map.of("effort", "low"),
-                "text", Map.of("verbosity", "medium"),
                 "store", false
         );
 
@@ -54,13 +54,30 @@ public class OpenAiFortuneReportClient {
             return outputText;
         } catch (FortuneReportGenerationException e) {
             throw e;
-        } catch (RestClientException e) {
+        } catch (RestClientResponseException e) {
+            log.warn(
+                    "OpenAI API 요청 실패. status={}, response={}",
+                    e.getStatusCode(),
+                    abbreviate(e.getResponseBodyAsString(), 1_000)
+            );
             throw new FortuneReportGenerationException(
                     "OPENAI_API_FAILED",
                     "AI 리포트를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.",
                     e
             );
+        } catch (RestClientException e) {
+            log.warn("OpenAI API 통신 실패: {}", e.getMessage());
+            throw new FortuneReportGenerationException(
+                    "OPENAI_API_FAILED", "AI 리포트를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.", e
+            );
         }
+    }
+
+    private String abbreviate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength) + "...";
     }
 
     private String extractOutputText(JsonNode response) {
