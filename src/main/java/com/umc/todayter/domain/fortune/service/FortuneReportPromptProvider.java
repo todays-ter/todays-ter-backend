@@ -1,7 +1,7 @@
 package com.umc.todayter.domain.fortune.service;
 
 import tools.jackson.databind.JsonNode;
-import com.umc.todayter.domain.fortune.config.OpenAiReportProperties;
+import com.umc.todayter.global.config.ablecityProperties.OpenAiReportProperties;
 import com.umc.todayter.domain.fortune.dto.internal.FortuneReportGenerationContext;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;

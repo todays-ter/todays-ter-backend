@@ -1,8 +1,8 @@
 package com.umc.todayter.domain.fortune.service;
 
 import tools.jackson.databind.JsonNode;
-import com.umc.todayter.domain.fortune.client.OpenAiFortuneReportClient;
-import com.umc.todayter.domain.fortune.client.AblecityManseClient;
+import com.umc.todayter.global.config.client.OpenAiFortuneReportClient;
+import com.umc.todayter.global.config.client.AblecityManseClient;
 import com.umc.todayter.domain.fortune.dto.internal.FortuneReportGenerationContext;
 import com.umc.todayter.domain.fortune.exception.FortuneReportGenerationException;
 import lombok.RequiredArgsConstructor;
