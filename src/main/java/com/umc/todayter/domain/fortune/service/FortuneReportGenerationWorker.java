@@ -1,8 +1,8 @@
 package com.umc.todayter.domain.fortune.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import com.umc.todayter.domain.fortune.client.OpenAiFortuneReportClient;
-import com.umc.todayter.domain.fortune.client.SazuManseClient;
+import com.umc.todayter.domain.fortune.client.AblecityManseClient;
 import com.umc.todayter.domain.fortune.dto.internal.FortuneReportGenerationContext;
 import com.umc.todayter.domain.fortune.exception.FortuneReportGenerationException;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 public class FortuneReportGenerationWorker {
 
     private final FortuneReportProgressService progressService;
-    private final SazuManseClient sazuManseClient;
+    private final AblecityManseClient ablecityManseClient;
     private final FortuneReportPromptProvider promptProvider;
     private final OpenAiFortuneReportClient openAiClient;
 
@@ -23,7 +23,7 @@ public class FortuneReportGenerationWorker {
         try {
             FortuneReportGenerationContext context = progressService.start(reportId);
 
-            JsonNode manseData = sazuManseClient.calculate(context);
+            JsonNode manseData = ablecityManseClient.calculate(context);
             progressService.saveManseData(reportId, manseData);
 
             String prompt = promptProvider.create(context, manseData);

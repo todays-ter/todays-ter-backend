@@ -1,6 +1,6 @@
 package com.umc.todayter.domain.fortune.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import com.umc.todayter.domain.fortune.config.OpenAiReportProperties;
 import com.umc.todayter.domain.fortune.dto.internal.FortuneReportGenerationContext;
 import org.springframework.core.io.Resource;
@@ -28,6 +28,7 @@ public class FortuneReportPromptProvider {
 
     public String create(FortuneReportGenerationContext context, JsonNode manseData) {
         String input = """
+                성별: %s
                 달력 유형: %s
                 생년월일: %s
                 출생 시각: %s
@@ -37,6 +38,7 @@ public class FortuneReportPromptProvider {
                 계산된 만세력 정보:
                 %s
                 """.formatted(
+                context.gender(),
                 context.calendarType(),
                 context.birthDate(),
                 context.birthTimeUnknown() ? "제공되지 않음" : context.birthTime(),

@@ -4,8 +4,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
 
-@ConfigurationProperties(prefix = "fortune-report.sazu")
-public record SazuApiProperties(
+@ConfigurationProperties(prefix = "fortune-report.ablecity")
+public record AblecityApiProperties(
         String baseUrl,
         String apiKey,
         Duration connectTimeout,

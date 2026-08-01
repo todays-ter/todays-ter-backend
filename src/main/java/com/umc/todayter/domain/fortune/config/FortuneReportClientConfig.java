@@ -12,8 +12,8 @@ import org.springframework.web.client.RestClient;
 public class FortuneReportClientConfig {
 
     @Bean
-    @Qualifier("sazuRestClient")
-    public RestClient sazuRestClient(SazuApiProperties properties) {
+    @Qualifier("ablecityRestClient")
+    public RestClient ablecityRestClient(AblecityApiProperties properties) {
         return createClient(properties.baseUrl(), properties.connectTimeout(), properties.readTimeout());
     }
 
