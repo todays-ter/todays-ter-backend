@@ -1,5 +1,6 @@
 package com.umc.todayter.domain.fortune.dto.internal;
 
+import tools.jackson.databind.JsonNode;
 import com.umc.todayter.domain.onboarding.enums.CalendarType;
 import com.umc.todayter.domain.onboarding.enums.ConcernType;
 import com.umc.todayter.domain.onboarding.enums.Gender;
@@ -16,6 +17,7 @@ public record FortuneReportGenerationContext(
         LocalDate birthDate,
         LocalTime birthTime,
         boolean birthTimeUnknown,
-        List<ConcernType> concernTypes
+        List<ConcernType> concernTypes,
+        JsonNode cachedManseData
 ) {
 }

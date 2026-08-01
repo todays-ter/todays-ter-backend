@@ -1,8 +1,8 @@
-package com.umc.todayter.domain.fortune.client;
+package com.umc.todayter.global.config.client;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
-import com.umc.todayter.domain.fortune.config.AblecityApiProperties;
+import com.umc.todayter.global.config.ablecityProperties.AblecityApiProperties;
 import com.umc.todayter.domain.fortune.dto.internal.FortuneReportGenerationContext;
 import com.umc.todayter.domain.fortune.exception.FortuneReportGenerationException;
 import com.umc.todayter.domain.onboarding.enums.CalendarType;

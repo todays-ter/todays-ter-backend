@@ -1,4 +1,4 @@
-package com.umc.todayter.domain.fortune.config;
+package com.umc.todayter.global.config.ablecityProperties;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
