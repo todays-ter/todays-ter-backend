@@ -2,6 +2,8 @@ package com.umc.todayter.domain.record.repository;
 
 import com.umc.todayter.domain.record.entity.VisitRecord;
 import com.umc.todayter.domain.record.enums.RecordType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -11,6 +13,12 @@ import java.util.List;
 public interface VisitRecordRepository extends JpaRepository<VisitRecord, Long> {
 
     boolean existsByMemberIdAndPlaceIdAndType(Long memberId, Long placeId, RecordType type);
+
+    boolean existsByMemberIdAndPlaceId(Long memberId, Long placeId);
+
+    long countByPlaceIdAndType(Long placeId, RecordType type);
+
+    Page<VisitRecord> findByPlaceIdAndType(Long placeId, RecordType type, Pageable pageable);
 
     @Query("""
             select vr from VisitRecord vr

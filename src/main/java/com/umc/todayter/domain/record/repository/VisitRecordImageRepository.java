@@ -8,4 +8,6 @@ import java.util.List;
 public interface VisitRecordImageRepository extends JpaRepository<VisitRecordImage, Long> {
 
     List<VisitRecordImage> findByVisitRecordIdOrderBySortOrderAsc(Long visitRecordId);
+
+    List<VisitRecordImage> findByVisitRecordIdInOrderBySortOrderAsc(List<Long> visitRecordIds);
 }

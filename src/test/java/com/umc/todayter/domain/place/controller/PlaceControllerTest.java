@@ -4,8 +4,11 @@ import com.umc.todayter.domain.place.dto.response.EditorPickItemResponse;
 import com.umc.todayter.domain.place.dto.response.EditorPickResponse;
 import com.umc.todayter.domain.place.dto.response.ElementFilterResponse;
 import com.umc.todayter.domain.place.dto.response.ExploreFiltersResponse;
+import com.umc.todayter.domain.place.dto.response.PlaceDetailResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceListItemResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceListResponse;
+import com.umc.todayter.domain.place.dto.response.PlaceReviewItemResponse;
+import com.umc.todayter.domain.place.dto.response.PlaceReviewListResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceSearchAppliedFiltersResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceSearchItemResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceSearchPageResponse;
@@ -13,6 +16,7 @@ import com.umc.todayter.domain.place.dto.response.PlaceSearchResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceSearchTypeResponse;
 import com.umc.todayter.domain.place.dto.request.PlaceSearchRequest;
 import com.umc.todayter.domain.place.service.EditorPickService;
+import com.umc.todayter.domain.place.service.PlaceDetailService;
 import com.umc.todayter.domain.place.service.PlaceSearchService;
 import com.umc.todayter.domain.place.dto.response.RegionFilterResponse;
 import com.umc.todayter.domain.place.dto.response.ThemeFilterResponse;
@@ -37,6 +41,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.net.URI;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -73,6 +78,9 @@ class PlaceControllerTest {
 
     @MockitoBean
     private PlaceThumbnailService placeThumbnailService;
+
+    @MockitoBean
+    private PlaceDetailService placeDetailService;
 
     @MockitoBean
     private JwtProvider jwtProvider;
@@ -387,6 +395,130 @@ class PlaceControllerTest {
                         .param("type", "bookmarked"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("PLACE400_2"));
+    }
+
+    @Test
+    void getMyPlaces_stillResolvesToPlaceListEndpoint_notShadowedByPlaceDetail() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(placeService.getMyPlaces("saved")).thenReturn(new PlaceListResponse(List.of()));
+
+        mockMvc.perform(get("/places/me")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .param("type", "saved"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.places").isArray());
+
+        verify(placeDetailService, never()).getPlaceDetail(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void getPlaceDetail_returnsApiResponseWithValidToken() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(placeDetailService.getPlaceDetail(org.mockito.ArgumentMatchers.eq(1L), org.mockito.ArgumentMatchers.eq("http://localhost")))
+                .thenReturn(new PlaceDetailResponse(
+                        1L,
+                        "청계천 모전교",
+                        "http://localhost/places/1/thumbnail",
+                        "수",
+                        List.of("감정 회복"),
+                        new PlaceDetailResponse.PlaceDescription(
+                                "이 터의 특징은 무엇인가요?",
+                                "수(水) 기운이 강해 감정 정리와 회복에 좋고 오늘의 흐름과 잘 맞아요."
+                        ),
+                        "서울 중구 무교동",
+                        37.5665,
+                        126.9780,
+                        9L,
+                        false,
+                        false
+                ));
+
+        mockMvc.perform(get("/places/1")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isSuccess").value(true))
+                .andExpect(jsonPath("$.code").value("COMMON200"))
+                .andExpect(jsonPath("$.result.placeId").value(1))
+                .andExpect(jsonPath("$.result.placeName").value("청계천 모전교"))
+                .andExpect(jsonPath("$.result.imageUrl").value("http://localhost/places/1/thumbnail"))
+                .andExpect(jsonPath("$.result.element").value("수"))
+                .andExpect(jsonPath("$.result.hashtags[0]").value("감정 회복"))
+                .andExpect(jsonPath("$.result.description.question").value("이 터의 특징은 무엇인가요?"))
+                .andExpect(jsonPath("$.result.description.answer").value("수(水) 기운이 강해 감정 정리와 회복에 좋고 오늘의 흐름과 잘 맞아요."))
+                .andExpect(jsonPath("$.result.address").value("서울 중구 무교동"))
+                .andExpect(jsonPath("$.result.latitude").value(37.5665))
+                .andExpect(jsonPath("$.result.longitude").value(126.9780))
+                .andExpect(jsonPath("$.result.reviewCount").value(9))
+                .andExpect(jsonPath("$.result.isSaved").value(false))
+                .andExpect(jsonPath("$.result.isVisited").value(false));
+    }
+
+    @Test
+    void getPlaceDetail_withoutAuthorizationHeader_returnsUnauthorized() throws Exception {
+        mockMvc.perform(get("/places/1"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.isSuccess").value(false))
+                .andExpect(jsonPath("$.code").value("COMMON401"));
+    }
+
+    @Test
+    void getPlaceDetail_placeNotFound_returnsNotFound() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(placeDetailService.getPlaceDetail(org.mockito.ArgumentMatchers.eq(999L), org.mockito.ArgumentMatchers.anyString()))
+                .thenThrow(new CustomException(PlaceErrorCode.PLACE_NOT_FOUND));
+
+        mockMvc.perform(get("/places/999")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("PLACE404_1"));
+    }
+
+    @Test
+    void getPlaceReviews_returnsPagedApiResponseWithoutAccessToken() throws Exception {
+        when(placeDetailService.getPlaceReviews(org.mockito.ArgumentMatchers.eq(1L), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new PlaceReviewListResponse(
+                        List.of(new PlaceReviewItemResponse(
+                                10L,
+                                "리뷰어",
+                                4,
+                                "좋았어요",
+                                List.of("https://cdn/1.jpg"),
+                                LocalDateTime.of(2026, 7, 19, 10, 0)
+                        )),
+                        new PlaceSearchPageResponse(0, 10, 1, 1, false)
+                ));
+
+        mockMvc.perform(get("/places/1/reviews"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isSuccess").value(true))
+                .andExpect(jsonPath("$.result.content[0].reviewId").value(10))
+                .andExpect(jsonPath("$.result.content[0].memberNickname").value("리뷰어"))
+                .andExpect(jsonPath("$.result.content[0].rating").value(4))
+                .andExpect(jsonPath("$.result.content[0].imageUrls[0]").value("https://cdn/1.jpg"))
+                .andExpect(jsonPath("$.result.page.totalElements").value(1));
+    }
+
+    @Test
+    void getPlaceReviews_emptyPageReturnsEmptyContent() throws Exception {
+        when(placeDetailService.getPlaceReviews(org.mockito.ArgumentMatchers.eq(1L), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new PlaceReviewListResponse(List.of(), new PlaceSearchPageResponse(0, 10, 0, 0, false)));
+
+        mockMvc.perform(get("/places/1/reviews"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.content").isEmpty());
+    }
+
+    @Test
+    void getPlaceReviews_placeNotFound_returnsNotFound() throws Exception {
+        when(placeDetailService.getPlaceReviews(org.mockito.ArgumentMatchers.eq(999L), org.mockito.ArgumentMatchers.any()))
+                .thenThrow(new CustomException(PlaceErrorCode.PLACE_NOT_FOUND));
+
+        mockMvc.perform(get("/places/999/reviews"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("PLACE404_1"));
     }
 
     @Test

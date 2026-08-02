@@ -8,4 +8,6 @@ import java.util.List;
 public interface SavedPlaceRepository extends JpaRepository<SavedPlace, Long> {
 
     List<SavedPlace> findAllByMemberIdOrderByCreatedAtDesc(Long memberId);
+
+    boolean existsByMemberIdAndPlaceId(Long memberId, Long placeId);
 }

@@ -3,9 +3,12 @@ package com.umc.todayter.domain.place.controller;
 import com.umc.todayter.domain.place.dto.request.PlaceSearchRequest;
 import com.umc.todayter.domain.place.dto.response.EditorPickResponse;
 import com.umc.todayter.domain.place.dto.response.ExploreFiltersResponse;
+import com.umc.todayter.domain.place.dto.response.PlaceDetailResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceListResponse;
+import com.umc.todayter.domain.place.dto.response.PlaceReviewListResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceSearchResponse;
 import com.umc.todayter.domain.place.service.EditorPickService;
+import com.umc.todayter.domain.place.service.PlaceDetailService;
 import com.umc.todayter.domain.place.service.PlaceSearchService;
 import com.umc.todayter.domain.place.service.PlaceService;
 import com.umc.todayter.domain.place.service.PlaceThumbnailService;
@@ -19,6 +22,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -42,6 +46,7 @@ public class PlaceController {
     private final PlaceSearchService placeSearchService;
     private final EditorPickService editorPickService;
     private final PlaceThumbnailService placeThumbnailService;
+    private final PlaceDetailService placeDetailService;
 
     @Operation(summary = "장소 검색 목록 조회", description = "검색어, 지역, 테마, 오행 조건으로 활성 장소 목록을 조회합니다.")
     @SecurityRequirements
@@ -93,6 +98,37 @@ public class PlaceController {
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<PlaceListResponse>> getMyPlaces(@RequestParam(required = false) String type) {
         PlaceListResponse result = placeService.getMyPlaces(type);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.onSuccess(result, SuccessCode.OK));
+    }
+
+    @Operation(summary = "장소 상세 조회", description = "장소 상세 정보와 저장/방문 여부를 조회합니다.")
+    @GetMapping("/{placeId}")
+    public ResponseEntity<ApiResponse<PlaceDetailResponse>> getPlaceDetail(@PathVariable Long placeId) {
+        String contextPathUrl = ServletUriComponentsBuilder
+                .fromCurrentContextPath()
+                .toUriString();
+        PlaceDetailResponse result = placeDetailService.getPlaceDetail(placeId, contextPathUrl);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.onSuccess(result, SuccessCode.OK));
+    }
+
+    @Operation(summary = "장소 후기 목록 조회", description = "특정 장소에 작성된 후기 목록을 페이징 조회합니다.")
+    @SecurityRequirements
+    @GetMapping("/{placeId}/reviews")
+    public ResponseEntity<ApiResponse<PlaceReviewListResponse>> getPlaceReviews(
+            @PathVariable Long placeId,
+            @org.springframework.data.web.PageableDefault(
+                    size = 10,
+                    sort = "createdAt",
+                    direction = org.springframework.data.domain.Sort.Direction.DESC
+            ) Pageable pageable
+    ) {
+        PlaceReviewListResponse result = placeDetailService.getPlaceReviews(placeId, pageable);
 
         return ResponseEntity
                 .status(HttpStatus.OK)
