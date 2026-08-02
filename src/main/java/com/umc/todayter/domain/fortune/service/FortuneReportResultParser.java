@@ -69,7 +69,12 @@ public class FortuneReportResultParser {
         for (int sectionNumber = 1; sectionNumber <= 6; sectionNumber++) {
             SectionDraft section = sections.get(sectionNumber);
             if (section != null) {
-                details.add(toDetailSection(sectionNumber, section, manseData));
+                details.add(toDetailSection(
+                        sectionNumber,
+                        section,
+                        manseData,
+                        basic.primaryElements()
+                ));
             }
         }
 
@@ -147,7 +152,12 @@ public class FortuneReportResultParser {
         content.setLength(0);
     }
 
-    private DetailSection toDetailSection(int sectionNumber, SectionDraft section, String manseData) {
+    private DetailSection toDetailSection(
+            int sectionNumber,
+            SectionDraft section,
+            String manseData,
+            List<FiveElement> primaryElements
+    ) {
         String coreSummary = clean(section.value("핵심 요약"));
         List<ContentBlock> blocks = new ArrayList<>();
         List<LabeledText> flowAnalysis = sectionNumber == 1
@@ -173,6 +183,7 @@ public class FortuneReportResultParser {
                 SECTION_CODES.getOrDefault(sectionNumber, "SECTION_" + sectionNumber),
                 section.title,
                 coreSummary,
+                sectionNumber == 1 ? primaryElements : List.of(),
                 dayPillars,
                 List.copyOf(blocks),
                 flowAnalysis,
