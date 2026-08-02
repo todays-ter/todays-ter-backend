@@ -37,6 +37,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -153,6 +154,39 @@ class PlaceDetailServiceTest {
         assertThat(response.reviews().get(0).reviewId()).isEqualTo(10L);
         assertThat(response.reviews().get(0).writerNickname()).isEqualTo("리뷰어");
         assertThat(response.reviews().get(0).images()).extracting("imageUrl").containsExactly("https://cdn/1.jpg");
+    }
+
+    @Test
+    void getPlaceReviews_onlyQueriesReviewType_notRecordType() {
+        Place place = place(ElementType.WATER, null);
+        when(placeRepository.findByIdAndActiveTrue(1L)).thenReturn(Optional.of(place));
+        when(visitRecordRepository.findByPlaceIdAndTypeOrderByCreatedAtDesc(1L, RecordType.REVIEW))
+                .thenReturn(List.of());
+        when(visitRecordImageRepository.findByVisitRecordIdInOrderBySortOrderAsc(anyList()))
+                .thenReturn(List.of());
+
+        placeDetailService.getPlaceReviews(1L);
+
+        // RECORD 타입("나에게 맞는 터" 개인 기록)은 절대 조회하지 않는지 검증
+        verify(visitRecordRepository).findByPlaceIdAndTypeOrderByCreatedAtDesc(1L, RecordType.REVIEW);
+        verify(visitRecordRepository, org.mockito.Mockito.never())
+                .findByPlaceIdAndTypeOrderByCreatedAtDesc(1L, RecordType.RECORD);
+    }
+
+    @Test
+    void getPlaceDetail_reviewCount_onlyCountsReviewType_notRecordType() {
+        Place place = place(ElementType.WATER, null);
+        when(placeRepository.findByIdAndActiveTrue(1L)).thenReturn(Optional.of(place));
+        when(visitRecordRepository.countByPlaceIdAndType(1L, RecordType.REVIEW)).thenReturn(3L);
+        when(savedPlaceRepository.existsByMemberIdAndPlaceId(1L, 1L)).thenReturn(false);
+        when(visitRecordRepository.existsByMemberIdAndPlaceId(1L, 1L)).thenReturn(false);
+
+        PlaceDetailResponse response = placeDetailService.getPlaceDetail(1L, "http://localhost");
+
+        assertThat(response.reviewCount()).isEqualTo(3L);
+        verify(visitRecordRepository).countByPlaceIdAndType(1L, RecordType.REVIEW);
+        verify(visitRecordRepository, org.mockito.Mockito.never())
+                .countByPlaceIdAndType(1L, RecordType.RECORD);
     }
 
     @Test
