@@ -78,6 +78,7 @@ public class PlaceService {
         return new PlaceListResponse(places);
     }
 
+    @Transactional
     public RecommendationPlaceDetailResponse getRecommendedPlaceDetail(
             Long placeId,
             String contextPathUrl,
@@ -95,6 +96,7 @@ public class PlaceService {
         return RecommendationPlaceDetailResponse.from(place, isSaved, snapshot, contextPathUrl);
     }
 
+    @Transactional
     public String createRecommendationShareToken(Long placeId, String guestId) {
         Place place = getActivePlace(placeId);
         CurrentUserContext userContext = currentUserContextResolver.resolve(guestId);
