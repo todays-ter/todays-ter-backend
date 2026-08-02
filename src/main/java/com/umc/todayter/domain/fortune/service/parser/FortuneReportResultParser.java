@@ -1,4 +1,4 @@
-package com.umc.todayter.domain.fortune.service;
+package com.umc.todayter.domain.fortune.service.parser;
 
 import com.umc.todayter.domain.fortune.dto.response.FortuneReportResultResponse.BasicReport;
 import com.umc.todayter.domain.fortune.dto.response.FortuneReportResultResponse.ContentBlock;

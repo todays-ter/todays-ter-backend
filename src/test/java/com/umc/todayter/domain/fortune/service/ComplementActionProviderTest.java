@@ -2,6 +2,7 @@ package com.umc.todayter.domain.fortune.service;
 
 import com.umc.todayter.domain.fortune.dto.response.FortuneReportResultResponse.ComplementActionGuide;
 import com.umc.todayter.domain.fortune.enums.FiveElement;
+import com.umc.todayter.domain.fortune.service.provider.ComplementActionProvider;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

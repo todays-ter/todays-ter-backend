@@ -1,6 +1,7 @@
 package com.umc.todayter.domain.fortune.service;
 
 import com.umc.todayter.domain.fortune.enums.FiveElement;
+import com.umc.todayter.domain.fortune.service.parser.FortuneReportResultParser;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
 

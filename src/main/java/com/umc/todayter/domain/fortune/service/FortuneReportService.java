@@ -1,5 +1,7 @@
 package com.umc.todayter.domain.fortune.service;
 
+import com.umc.todayter.domain.fortune.service.parser.FortuneReportResultParser;
+import com.umc.todayter.domain.fortune.service.provider.ComplementActionProvider;
 import com.umc.todayter.global.config.ablecityProperties.FortuneReportProperties;
 import com.umc.todayter.domain.fortune.dto.response.FortuneReportCreateResponse;
 import com.umc.todayter.domain.fortune.dto.response.FortuneReportStatusResponse;
