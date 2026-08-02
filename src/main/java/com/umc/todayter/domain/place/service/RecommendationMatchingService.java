@@ -12,6 +12,7 @@ import com.umc.todayter.domain.onboarding.repository.OnboardingRepository;
 import com.umc.todayter.domain.place.entity.Place;
 import com.umc.todayter.domain.place.dto.internal.RecommendationMatchContext;
 import com.umc.todayter.domain.place.enums.ElementType;
+import com.umc.todayter.domain.place.service.provider.DailyFortuneElementProvider;
 import com.umc.todayter.global.security.context.CurrentUserContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

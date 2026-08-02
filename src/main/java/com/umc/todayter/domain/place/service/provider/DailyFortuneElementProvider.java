@@ -1,4 +1,4 @@
-package com.umc.todayter.domain.place.service;
+package com.umc.todayter.domain.place.service.provider;
 
 import com.umc.todayter.domain.place.enums.ElementType;
 import lombok.RequiredArgsConstructor;
