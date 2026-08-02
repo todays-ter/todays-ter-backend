@@ -7,12 +7,13 @@ import com.umc.todayter.domain.place.dto.response.ElementFilterResponse;
 import com.umc.todayter.domain.place.dto.response.ExploreFiltersResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceListItemResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceListResponse;
-import com.umc.todayter.domain.place.dto.response.PlaceDetailResponse;
+import com.umc.todayter.domain.place.dto.response.RecommendationPlaceDetailResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceBookmarkResponse;
 import com.umc.todayter.domain.place.dto.response.RegionFilterResponse;
 import com.umc.todayter.domain.place.dto.response.ThemeFilterResponse;
 import com.umc.todayter.domain.place.entity.Place;
 import com.umc.todayter.domain.place.entity.SavedPlace;
+import com.umc.todayter.domain.place.entity.PlaceRecommendationSnapshot;
 import com.umc.todayter.domain.place.enums.ElementType;
 import com.umc.todayter.domain.place.enums.RegionCode;
 import com.umc.todayter.domain.place.enums.ThemeType;
@@ -21,13 +22,15 @@ import com.umc.todayter.domain.place.repository.PlaceRepository;
 import com.umc.todayter.domain.place.repository.SavedPlaceRepository;
 import com.umc.todayter.domain.place.repository.ThemePlaceCount;
 import com.umc.todayter.domain.record.entity.VisitRecord;
-import com.umc.todayter.domain.record.enums.RecordType;
 import com.umc.todayter.domain.record.repository.VisitRecordRepository;
 import com.umc.todayter.global.apiPayload.exception.CustomException;
 import com.umc.todayter.global.security.SecurityUtil;
+import com.umc.todayter.global.security.context.CurrentUserContext;
+import com.umc.todayter.global.security.context.CurrentUserContextResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -50,6 +53,8 @@ public class PlaceService {
     private final SavedPlaceRepository savedPlaceRepository;
     private final VisitRecordRepository visitRecordRepository;
     private final MemberRepository memberRepository;
+    private final PlaceRecommendationSnapshotService recommendationSnapshotService;
+    private final CurrentUserContextResolver currentUserContextResolver;
 
     public PlaceListResponse getMyPlaces(String type) {
         Long memberId = SecurityUtil.getCurrentMemberId();
@@ -73,15 +78,45 @@ public class PlaceService {
         return new PlaceListResponse(places);
     }
 
-    public PlaceDetailResponse getRecommendedPlaceDetail(Long placeId, String contextPathUrl) {
+    public RecommendationPlaceDetailResponse getRecommendedPlaceDetail(
+            Long placeId,
+            String contextPathUrl,
+            String guestId
+    ) {
         Place place = getActivePlace(placeId);
         Long memberId = SecurityUtil.getCurrentMemberIdOrNull();
+        CurrentUserContext userContext = resolveOptionalUserContext(memberId, guestId);
 
-        long reviewCount = visitRecordRepository.countByPlaceIdAndType(placeId, RecordType.REVIEW);
         boolean isSaved = memberId != null && savedPlaceRepository.existsByMemberIdAndPlaceId(memberId, placeId);
-        boolean isVisited = memberId != null && visitRecordRepository.existsByMemberIdAndPlaceId(memberId, placeId);
+        PlaceRecommendationSnapshot snapshot = recommendationSnapshotService
+                .getOrCreate(userContext, place)
+                .orElse(null);
 
-        return PlaceDetailResponse.from(place, reviewCount, isSaved, isVisited, contextPathUrl);
+        return RecommendationPlaceDetailResponse.from(place, isSaved, snapshot, contextPathUrl);
+    }
+
+    public String createRecommendationShareToken(Long placeId, String guestId) {
+        Place place = getActivePlace(placeId);
+        CurrentUserContext userContext = currentUserContextResolver.resolve(guestId);
+        PlaceRecommendationSnapshot snapshot = recommendationSnapshotService
+                .getOrCreateRequired(userContext, place);
+        return recommendationSnapshotService.enableSharing(snapshot).getShareToken();
+    }
+
+    public RecommendationPlaceDetailResponse getSharedRecommendedPlaceDetail(
+            String shareToken,
+            String contextPathUrl
+    ) {
+        PlaceRecommendationSnapshot snapshot = recommendationSnapshotService.getShared(shareToken);
+        Place place = getActivePlace(snapshot.getPlaceId());
+        return RecommendationPlaceDetailResponse.from(place, false, snapshot, contextPathUrl);
+    }
+
+    private CurrentUserContext resolveOptionalUserContext(Long memberId, String guestId) {
+        if (memberId == null && !StringUtils.hasText(guestId)) {
+            return null;
+        }
+        return currentUserContextResolver.resolve(guestId);
     }
 
     public void validateActivePlace(Long placeId) {
