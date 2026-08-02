@@ -93,7 +93,8 @@ public class SecurityConfig {
                                 "/api/guest-sessions/**",
                                 "/api/guest-onboarding/**",
                                 "/auth/dev/**",
-                                "/auth/kakao/login"
+                                "/auth/kakao/login",
+                                "/auth/reissue"
                         ).permitAll()
 
                         .anyRequest().authenticated()
