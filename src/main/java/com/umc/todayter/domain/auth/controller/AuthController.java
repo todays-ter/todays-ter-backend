@@ -10,12 +10,14 @@ import com.umc.todayter.domain.auth.service.KakaoAuthService;
 import com.umc.todayter.domain.auth.service.LogoutService;
 import com.umc.todayter.domain.auth.service.TokenReissueService;
 import com.umc.todayter.global.apiPayload.response.ApiResponse;
+import com.umc.todayter.global.security.AuthOriginValidator;
 import com.umc.todayter.global.security.SecurityUtil;
 import com.umc.todayter.global.util.AuthCookieUtil;
 import com.umc.todayter.global.util.GuestCookieUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -29,8 +31,9 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/auth")
 public class AuthController {
 
-    private final KakaoAuthService kakaoAuthService;
     private final AuthCookieUtil authCookieUtil;
+    private final AuthOriginValidator authOriginValidator;
+    private final KakaoAuthService kakaoAuthService;
     private final TokenReissueService tokenReissueService;
     private final LogoutService logoutService;
 
@@ -89,8 +92,11 @@ public class AuthController {
                     name = AuthCookieUtil.REFRESH_COOKIE_NAME,
                     required = false
             ) String refreshToken,
+            HttpServletRequest request, // 추가
             HttpServletResponse response
     ) {
+        authOriginValidator.validate(request); // 추가
+
         AuthTokenResult result = tokenReissueService.reissue(refreshToken);
 
         authCookieUtil.addRefreshTokenCookie(
