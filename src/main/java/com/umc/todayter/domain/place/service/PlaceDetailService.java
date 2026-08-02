@@ -3,7 +3,6 @@ package com.umc.todayter.domain.place.service;
 import com.umc.todayter.domain.place.dto.response.PlaceDetailResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceReviewItemResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceReviewListResponse;
-import com.umc.todayter.domain.place.dto.response.PlaceSearchPageResponse;
 import com.umc.todayter.domain.place.entity.Place;
 import com.umc.todayter.domain.place.exception.PlaceErrorCode;
 import com.umc.todayter.domain.place.repository.PlaceRepository;
@@ -16,8 +15,6 @@ import com.umc.todayter.domain.record.repository.VisitRecordRepository;
 import com.umc.todayter.global.apiPayload.exception.CustomException;
 import com.umc.todayter.global.security.SecurityUtil;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,26 +43,37 @@ public class PlaceDetailService {
         return PlaceDetailResponse.from(place, contextPathUrl, reviewCount, isSaved, isVisited);
     }
 
-    public PlaceReviewListResponse getPlaceReviews(Long placeId, Pageable pageable) {
+    public PlaceReviewListResponse getPlaceReviews(Long placeId) {
         findActivePlace(placeId);
+        Long memberId = SecurityUtil.getCurrentMemberId();
 
-        Page<VisitRecord> reviews = visitRecordRepository.findByPlaceIdAndType(placeId, RecordType.REVIEW, pageable);
+        List<VisitRecord> reviews = visitRecordRepository.findByPlaceIdAndTypeOrderByCreatedAtDesc(placeId, RecordType.REVIEW);
 
-        List<Long> reviewIds = reviews.getContent().stream()
+        List<Long> reviewIds = reviews.stream()
                 .map(VisitRecord::getId)
                 .toList();
         Map<Long, List<VisitRecordImage>> imagesByRecordId = visitRecordImageRepository
                 .findByVisitRecordIdInOrderBySortOrderAsc(reviewIds).stream()
                 .collect(Collectors.groupingBy(image -> image.getVisitRecord().getId()));
 
-        List<PlaceReviewItemResponse> content = reviews.getContent().stream()
+        PlaceReviewItemResponse myReview = reviews.stream()
+                .filter(review -> review.getMember().getId().equals(memberId))
+                .findFirst()
+                .map(review -> PlaceReviewItemResponse.from(
+                        review,
+                        imagesByRecordId.getOrDefault(review.getId(), List.of())
+                ))
+                .orElse(null);
+
+        List<PlaceReviewItemResponse> otherReviews = reviews.stream()
+                .filter(review -> !review.getMember().getId().equals(memberId))
                 .map(review -> PlaceReviewItemResponse.from(
                         review,
                         imagesByRecordId.getOrDefault(review.getId(), List.of())
                 ))
                 .toList();
 
-        return new PlaceReviewListResponse(content, PlaceSearchPageResponse.from(reviews));
+        return new PlaceReviewListResponse(reviews.size(), myReview, otherReviews);
     }
 
     private Place findActivePlace(Long placeId) {

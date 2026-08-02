@@ -9,6 +9,7 @@ import com.umc.todayter.domain.place.dto.response.PlaceListItemResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceListResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceReviewItemResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceReviewListResponse;
+import com.umc.todayter.domain.record.dto.response.ImageInfo;
 import com.umc.todayter.domain.place.dto.response.PlaceSearchAppliedFiltersResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceSearchItemResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceSearchPageResponse;
@@ -477,46 +478,74 @@ class PlaceControllerTest {
     }
 
     @Test
-    void getPlaceReviews_returnsPagedApiResponseWithoutAccessToken() throws Exception {
-        when(placeDetailService.getPlaceReviews(org.mockito.ArgumentMatchers.eq(1L), org.mockito.ArgumentMatchers.any()))
+    void getPlaceReviews_withoutAccessToken_returnsUnauthorized() throws Exception {
+        mockMvc.perform(get("/places/1/reviews"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.isSuccess").value(false))
+                .andExpect(jsonPath("$.code").value("COMMON401"));
+    }
+
+    @Test
+    void getPlaceReviews_returnsTotalCountMyReviewAndReviews() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(placeDetailService.getPlaceReviews(1L))
                 .thenReturn(new PlaceReviewListResponse(
+                        2,
+                        new PlaceReviewItemResponse(
+                                11L,
+                                "나",
+                                5,
+                                "다시 생각해도 좋았어요",
+                                List.of(),
+                                LocalDateTime.of(2026, 7, 19, 11, 0)
+                        ),
                         List.of(new PlaceReviewItemResponse(
                                 10L,
                                 "리뷰어",
                                 4,
                                 "좋았어요",
-                                List.of("https://cdn/1.jpg"),
+                                List.of(new ImageInfo(101L, "https://cdn/1.jpg")),
                                 LocalDateTime.of(2026, 7, 19, 10, 0)
-                        )),
-                        new PlaceSearchPageResponse(0, 10, 1, 1, false)
+                        ))
                 ));
 
-        mockMvc.perform(get("/places/1/reviews"))
+        mockMvc.perform(get("/places/1/reviews")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.isSuccess").value(true))
-                .andExpect(jsonPath("$.result.content[0].reviewId").value(10))
-                .andExpect(jsonPath("$.result.content[0].memberNickname").value("리뷰어"))
-                .andExpect(jsonPath("$.result.content[0].rating").value(4))
-                .andExpect(jsonPath("$.result.content[0].imageUrls[0]").value("https://cdn/1.jpg"))
-                .andExpect(jsonPath("$.result.page.totalElements").value(1));
+                .andExpect(jsonPath("$.result.totalCount").value(2))
+                .andExpect(jsonPath("$.result.myReview.reviewId").value(11))
+                .andExpect(jsonPath("$.result.reviews[0].reviewId").value(10))
+                .andExpect(jsonPath("$.result.reviews[0].writerNickname").value("리뷰어"))
+                .andExpect(jsonPath("$.result.reviews[0].rating").value(4))
+                .andExpect(jsonPath("$.result.reviews[0].images[0].imageId").value(101))
+                .andExpect(jsonPath("$.result.reviews[0].images[0].imageUrl").value("https://cdn/1.jpg"));
     }
 
     @Test
-    void getPlaceReviews_emptyPageReturnsEmptyContent() throws Exception {
-        when(placeDetailService.getPlaceReviews(org.mockito.ArgumentMatchers.eq(1L), org.mockito.ArgumentMatchers.any()))
-                .thenReturn(new PlaceReviewListResponse(List.of(), new PlaceSearchPageResponse(0, 10, 0, 0, false)));
+    void getPlaceReviews_noMyReview_returnsNullMyReview() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(placeDetailService.getPlaceReviews(1L))
+                .thenReturn(new PlaceReviewListResponse(0, null, List.of()));
 
-        mockMvc.perform(get("/places/1/reviews"))
+        mockMvc.perform(get("/places/1/reviews")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.result.content").isEmpty());
+                .andExpect(jsonPath("$.result.myReview").doesNotExist())
+                .andExpect(jsonPath("$.result.reviews").isEmpty());
     }
 
     @Test
     void getPlaceReviews_placeNotFound_returnsNotFound() throws Exception {
-        when(placeDetailService.getPlaceReviews(org.mockito.ArgumentMatchers.eq(999L), org.mockito.ArgumentMatchers.any()))
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(placeDetailService.getPlaceReviews(999L))
                 .thenThrow(new CustomException(PlaceErrorCode.PLACE_NOT_FOUND));
 
-        mockMvc.perform(get("/places/999/reviews"))
+        mockMvc.perform(get("/places/999/reviews")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("PLACE404_1"));
     }

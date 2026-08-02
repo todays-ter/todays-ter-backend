@@ -2,8 +2,6 @@ package com.umc.todayter.domain.record.repository;
 
 import com.umc.todayter.domain.record.entity.VisitRecord;
 import com.umc.todayter.domain.record.enums.RecordType;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -18,7 +16,7 @@ public interface VisitRecordRepository extends JpaRepository<VisitRecord, Long> 
 
     long countByPlaceIdAndType(Long placeId, RecordType type);
 
-    Page<VisitRecord> findByPlaceIdAndType(Long placeId, RecordType type, Pageable pageable);
+    List<VisitRecord> findByPlaceIdAndTypeOrderByCreatedAtDesc(Long placeId, RecordType type);
 
     @Query("""
             select vr from VisitRecord vr

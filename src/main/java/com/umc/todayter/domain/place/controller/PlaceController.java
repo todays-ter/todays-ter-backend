@@ -22,7 +22,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -117,18 +116,10 @@ public class PlaceController {
                 .body(ApiResponse.onSuccess(result, SuccessCode.OK));
     }
 
-    @Operation(summary = "장소 후기 목록 조회", description = "특정 장소에 작성된 후기 목록을 페이징 조회합니다.")
-    @SecurityRequirements
+    @Operation(summary = "장소 후기 목록 조회", description = "특정 장소에 작성된 후기 전체 목록을 조회합니다. 내가 쓴 후기는 myReview로 별도 반환됩니다.")
     @GetMapping("/{placeId}/reviews")
-    public ResponseEntity<ApiResponse<PlaceReviewListResponse>> getPlaceReviews(
-            @PathVariable Long placeId,
-            @org.springframework.data.web.PageableDefault(
-                    size = 10,
-                    sort = "createdAt",
-                    direction = org.springframework.data.domain.Sort.Direction.DESC
-            ) Pageable pageable
-    ) {
-        PlaceReviewListResponse result = placeDetailService.getPlaceReviews(placeId, pageable);
+    public ResponseEntity<ApiResponse<PlaceReviewListResponse>> getPlaceReviews(@PathVariable Long placeId) {
+        PlaceReviewListResponse result = placeDetailService.getPlaceReviews(placeId);
 
         return ResponseEntity
                 .status(HttpStatus.OK)

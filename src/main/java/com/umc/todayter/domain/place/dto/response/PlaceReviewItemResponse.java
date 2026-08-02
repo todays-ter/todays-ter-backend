@@ -1,5 +1,6 @@
 package com.umc.todayter.domain.place.dto.response;
 
+import com.umc.todayter.domain.record.dto.response.ImageInfo;
 import com.umc.todayter.domain.record.entity.VisitRecord;
 import com.umc.todayter.domain.record.entity.VisitRecordImage;
 
@@ -8,15 +9,15 @@ import java.util.List;
 
 public record PlaceReviewItemResponse(
         Long reviewId,
-        String memberNickname,
+        String writerNickname,
         Integer rating,
         String content,
-        List<String> imageUrls,
+        List<ImageInfo> images,
         LocalDateTime createdAt
 ) {
     public static PlaceReviewItemResponse from(VisitRecord visitRecord, List<VisitRecordImage> images) {
-        List<String> imageUrls = images.stream()
-                .map(VisitRecordImage::getImageUrl)
+        List<ImageInfo> imageInfos = images.stream()
+                .map(ImageInfo::from)
                 .toList();
 
         return new PlaceReviewItemResponse(
@@ -24,7 +25,7 @@ public record PlaceReviewItemResponse(
                 visitRecord.getMember().getNickname(),
                 visitRecord.getRating(),
                 visitRecord.getContent(),
-                imageUrls,
+                imageInfos,
                 visitRecord.getCreatedAt()
         );
     }

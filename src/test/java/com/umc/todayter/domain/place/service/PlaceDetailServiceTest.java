@@ -26,8 +26,6 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -133,34 +131,58 @@ class PlaceDetailServiceTest {
     }
 
     @Test
-    void getPlaceReviews_returnsPagedReviewsWithImagesGroupedByRecord() {
+    void getPlaceReviews_returnsAllReviewsWithImagesGroupedByRecord_noMyReview() {
         Place place = place(ElementType.WATER, null);
         when(placeRepository.findByIdAndActiveTrue(1L)).thenReturn(Optional.of(place));
 
-        Member member = member(2L, "리뷰어");
-        VisitRecord review = visitRecord(10L, member, place);
-        when(visitRecordRepository.findByPlaceIdAndType(1L, RecordType.REVIEW, PageRequest.of(0, 10)))
-                .thenReturn(new PageImpl<>(List.of(review), PageRequest.of(0, 10), 1));
+        Member otherMember = member(2L, "리뷰어");
+        VisitRecord review = visitRecord(10L, otherMember, place);
+        when(visitRecordRepository.findByPlaceIdAndTypeOrderByCreatedAtDesc(1L, RecordType.REVIEW))
+                .thenReturn(List.of(review));
 
-        VisitRecordImage image = VisitRecordImage.create(member, "https://cdn/1.jpg", 0);
+        VisitRecordImage image = VisitRecordImage.create(otherMember, "https://cdn/1.jpg", 0);
         ReflectionTestUtils.setField(image, "visitRecord", review);
         when(visitRecordImageRepository.findByVisitRecordIdInOrderBySortOrderAsc(anyList()))
                 .thenReturn(List.of(image));
 
-        PlaceReviewListResponse response = placeDetailService.getPlaceReviews(1L, PageRequest.of(0, 10));
+        PlaceReviewListResponse response = placeDetailService.getPlaceReviews(1L);
 
-        assertThat(response.content()).hasSize(1);
-        assertThat(response.content().get(0).reviewId()).isEqualTo(10L);
-        assertThat(response.content().get(0).memberNickname()).isEqualTo("리뷰어");
-        assertThat(response.content().get(0).imageUrls()).containsExactly("https://cdn/1.jpg");
-        assertThat(response.page().totalElements()).isEqualTo(1);
+        assertThat(response.totalCount()).isEqualTo(1);
+        assertThat(response.myReview()).isNull();
+        assertThat(response.reviews()).hasSize(1);
+        assertThat(response.reviews().get(0).reviewId()).isEqualTo(10L);
+        assertThat(response.reviews().get(0).writerNickname()).isEqualTo("리뷰어");
+        assertThat(response.reviews().get(0).images()).extracting("imageUrl").containsExactly("https://cdn/1.jpg");
+    }
+
+    @Test
+    void getPlaceReviews_separatesMyReviewFromOtherReviews() {
+        Place place = place(ElementType.WATER, null);
+        when(placeRepository.findByIdAndActiveTrue(1L)).thenReturn(Optional.of(place));
+
+        Member me = member(1L, "나"); // 현재 인증된 회원(1L)과 동일
+        Member otherMember = member(2L, "리뷰어");
+        VisitRecord myReview = visitRecord(11L, me, place);
+        VisitRecord otherReview = visitRecord(10L, otherMember, place);
+        when(visitRecordRepository.findByPlaceIdAndTypeOrderByCreatedAtDesc(1L, RecordType.REVIEW))
+                .thenReturn(List.of(myReview, otherReview));
+        when(visitRecordImageRepository.findByVisitRecordIdInOrderBySortOrderAsc(anyList()))
+                .thenReturn(List.of());
+
+        PlaceReviewListResponse response = placeDetailService.getPlaceReviews(1L);
+
+        assertThat(response.totalCount()).isEqualTo(2);
+        assertThat(response.myReview()).isNotNull();
+        assertThat(response.myReview().reviewId()).isEqualTo(11L);
+        assertThat(response.reviews()).hasSize(1);
+        assertThat(response.reviews().get(0).reviewId()).isEqualTo(10L);
     }
 
     @Test
     void getPlaceReviews_placeNotFound_throwsPlaceNotFound() {
         when(placeRepository.findByIdAndActiveTrue(1L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> placeDetailService.getPlaceReviews(1L, PageRequest.of(0, 10)))
+        assertThatThrownBy(() -> placeDetailService.getPlaceReviews(1L))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(PlaceErrorCode.PLACE_NOT_FOUND);
