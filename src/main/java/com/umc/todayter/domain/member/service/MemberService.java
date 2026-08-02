@@ -1,5 +1,6 @@
 package com.umc.todayter.domain.member.service;
 
+import com.umc.todayter.domain.member.dto.response.MemberInfoResponse;
 import com.umc.todayter.domain.member.entity.Member;
 import com.umc.todayter.domain.member.enums.MemberStatus;
 import com.umc.todayter.domain.member.exception.MemberErrorCode;
@@ -20,6 +21,12 @@ public class MemberService {
         return memberRepository
                 .findByIdAndStatus(memberId, MemberStatus.ACTIVE)
                 .orElseThrow(() -> new CustomException(MemberErrorCode.MEMBER_NOT_FOUND));
+    }
+
+    public MemberInfoResponse getMemberInfo(Long memberId) {
+        Member member = getActiveMember(memberId);
+
+        return MemberInfoResponse.from(member);
     }
 
     // 개발용 토큰 발급 API에서 사용
