@@ -4,10 +4,12 @@ import com.umc.todayter.domain.member.dto.request.MemberSajuUpdateRequest;
 import com.umc.todayter.domain.member.dto.request.MemberWithdrawRequest;
 import com.umc.todayter.domain.member.dto.response.MemberInfoResponse;
 import com.umc.todayter.domain.member.dto.response.MemberSajuResponse;
+import com.umc.todayter.domain.member.dto.response.SocialAccountListResponse;
 import com.umc.todayter.domain.member.enums.code.MemberSuccessCode;
 import com.umc.todayter.domain.member.service.MemberSajuService;
 import com.umc.todayter.domain.member.service.MemberService;
 import com.umc.todayter.domain.member.service.MemberWithdrawService;
+import com.umc.todayter.domain.member.service.SocialAccountQueryService;
 import com.umc.todayter.global.apiPayload.response.ApiResponse;
 import com.umc.todayter.global.security.SecurityUtil;
 import com.umc.todayter.global.util.AuthCookieUtil;
@@ -28,6 +30,7 @@ public class MemberController {
 
     private final MemberSajuService memberSajuService;
     private final MemberService memberService;
+    private final SocialAccountQueryService socialAccountQueryService;
     private final MemberWithdrawService memberWithdrawService;
     private final AuthCookieUtil authCookieUtil;
 
@@ -87,6 +90,24 @@ public class MemberController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(ApiResponse.onSuccess(result, MemberSuccessCode.MEMBER_INFO_RETRIEVED));
+    }
+
+    @Operation(
+            summary = "연결된 소셜 계정 목록 조회",
+            description = """
+                현재 로그인한 회원에게 연결된 소셜 계정 목록을 조회합니다.
+                현재 회원이 사용할 수 있는 소셜 로그인 수단과 계정 이메일을 반환합니다.
+                """
+    )
+    @GetMapping("/me/social-accounts")
+    public ResponseEntity<ApiResponse<SocialAccountListResponse>> getSocialAccounts() {
+        Long memberId = SecurityUtil.getCurrentMemberId();
+
+        SocialAccountListResponse result = socialAccountQueryService.getSocialAccounts(memberId);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.onSuccess(result, MemberSuccessCode.SOCIAL_ACCOUNTS_RETRIEVED));
     }
 
     @Operation(
