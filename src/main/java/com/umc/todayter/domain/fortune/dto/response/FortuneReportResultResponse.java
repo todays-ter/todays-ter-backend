@@ -1,5 +1,6 @@
 package com.umc.todayter.domain.fortune.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.umc.todayter.domain.fortune.enums.FiveElement;
 
@@ -30,9 +31,10 @@ public final class FortuneReportResultResponse {
     }
 
     public record DetailSection(
-            String code,
-            String title,
+            @JsonIgnore String code,
+            @JsonIgnore String title,
             String coreSummary,
+            @JsonInclude(JsonInclude.Include.NON_EMPTY) List<FiveElement> primaryElements,
             @JsonInclude(JsonInclude.Include.NON_NULL) DayPillarCards dayPillars,
             @JsonInclude(JsonInclude.Include.NON_EMPTY) List<ContentBlock> contentBlocks,
             @JsonInclude(JsonInclude.Include.NON_EMPTY) List<LabeledText> flowAnalysis,
