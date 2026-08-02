@@ -19,7 +19,8 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "fortune_reports", indexes = {
         @Index(name = "idx_fortune_reports_member_status", columnList = "member_id,status"),
-        @Index(name = "idx_fortune_reports_guest_status", columnList = "guest_session_id,status")
+        @Index(name = "idx_fortune_reports_guest_status", columnList = "guest_session_id,status"),
+        @Index(name = "idx_fortune_reports_share_token", columnList = "share_token", unique = true)
 }, check = @CheckConstraint(
         name = "chk_fortune_reports_single_owner",
         constraint = "(member_id is null) <> (guest_session_id is null)"
@@ -58,6 +59,9 @@ public class FortuneReport extends BaseEntity {
 
     @Column(name = "report_content", columnDefinition = "LONGTEXT")
     private String reportContent;
+
+    @Column(name = "share_token", length = 32, unique = true)
+    private String shareToken;
 
     @Column(name = "failure_code", length = 50)
     private String failureCode;
@@ -111,6 +115,15 @@ public class FortuneReport extends BaseEntity {
         }
         this.memberId = memberId;
         this.guestSessionId = null;
+    }
+
+    public void enableSharing(String shareToken) {
+        if (shareToken == null || shareToken.length() != 32) {
+            throw new IllegalArgumentException("공유 토큰 형식이 올바르지 않습니다.");
+        }
+        if (this.shareToken == null) {
+            this.shareToken = shareToken;
+        }
     }
 
     public void startAttempt() {

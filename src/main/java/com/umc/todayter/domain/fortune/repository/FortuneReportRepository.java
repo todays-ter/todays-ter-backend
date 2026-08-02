@@ -17,6 +17,8 @@ public interface FortuneReportRepository extends JpaRepository<FortuneReport, Lo
 
     Optional<FortuneReport> findByIdAndMemberId(Long id, Long memberId);
     Optional<FortuneReport> findByIdAndGuestSessionId(Long id, Long guestSessionId);
+    Optional<FortuneReport> findByShareToken(String shareToken);
+    boolean existsByShareToken(String shareToken);
     List<FortuneReport> findAllByGuestSessionId(Long guestSessionId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

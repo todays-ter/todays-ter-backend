@@ -7,8 +7,10 @@ import com.umc.todayter.domain.place.dto.response.ElementFilterResponse;
 import com.umc.todayter.domain.place.dto.response.ExploreFiltersResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceListItemResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceListResponse;
+import com.umc.todayter.domain.place.dto.response.PlaceDetailResponse;
 import com.umc.todayter.domain.place.dto.response.RegionFilterResponse;
 import com.umc.todayter.domain.place.dto.response.ThemeFilterResponse;
+import com.umc.todayter.domain.place.entity.Place;
 import com.umc.todayter.domain.place.enums.ElementType;
 import com.umc.todayter.domain.place.enums.RegionCode;
 import com.umc.todayter.domain.place.enums.ThemeType;
@@ -17,6 +19,7 @@ import com.umc.todayter.domain.place.repository.PlaceRepository;
 import com.umc.todayter.domain.place.repository.SavedPlaceRepository;
 import com.umc.todayter.domain.place.repository.ThemePlaceCount;
 import com.umc.todayter.domain.record.entity.VisitRecord;
+import com.umc.todayter.domain.record.enums.RecordType;
 import com.umc.todayter.domain.record.repository.VisitRecordRepository;
 import com.umc.todayter.global.apiPayload.exception.CustomException;
 import com.umc.todayter.global.security.SecurityUtil;
@@ -66,6 +69,26 @@ public class PlaceService {
         };
 
         return new PlaceListResponse(places);
+    }
+
+    public PlaceDetailResponse getRecommendedPlaceDetail(Long placeId, String contextPathUrl) {
+        Place place = getActivePlace(placeId);
+        Long memberId = SecurityUtil.getCurrentMemberIdOrNull();
+
+        long reviewCount = visitRecordRepository.countByPlaceIdAndType(placeId, RecordType.REVIEW);
+        boolean isSaved = memberId != null && savedPlaceRepository.existsByMemberIdAndPlaceId(memberId, placeId);
+        boolean isVisited = memberId != null && visitRecordRepository.existsByMemberIdAndPlaceId(memberId, placeId);
+
+        return PlaceDetailResponse.from(place, reviewCount, isSaved, isVisited, contextPathUrl);
+    }
+
+    public void validateActivePlace(Long placeId) {
+        getActivePlace(placeId);
+    }
+
+    private Place getActivePlace(Long placeId) {
+        return placeRepository.findByIdAndActiveTrue(placeId)
+                .orElseThrow(() -> new CustomException(PlaceErrorCode.PLACE_NOT_FOUND));
     }
 
     public ExploreFiltersResponse getExploreFilters() {

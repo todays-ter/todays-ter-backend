@@ -19,12 +19,15 @@ import com.umc.todayter.domain.onboarding.entity.GuestSession;
 import com.umc.todayter.domain.onboarding.repository.GuestSessionRepository;
 import com.umc.todayter.domain.onboarding.repository.OnboardingRepository;
 import com.umc.todayter.global.apiPayload.exception.CustomException;
+import com.umc.todayter.global.dto.response.ShareLinkResponse;
+import com.umc.todayter.global.service.ShareUrlService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -39,6 +42,7 @@ public class FortuneReportService {
     private final ApplicationEventPublisher eventPublisher;
     private final FortuneReportResultParser resultParser;
     private final ComplementActionProvider complementActionProvider;
+    private final ShareUrlService shareUrlService;
 
     @Transactional
     public FortuneReportCreateResponse create(Long memberId, String guestId) {
@@ -105,6 +109,10 @@ public class FortuneReportService {
 
     public FortuneReportSummaryResponse getSummary(Long memberId, String guestId, Long reportId) {
         FortuneReport report = getCompletedOwnedReport(memberId, guestId, reportId);
+        return toSummaryResponse(report);
+    }
+
+    private FortuneReportSummaryResponse toSummaryResponse(FortuneReport report) {
         return new FortuneReportSummaryResponse(
                 report.getId(),
                 resultParser.parseBasic(report.getReportContent())
@@ -123,6 +131,13 @@ public class FortuneReportService {
         }
 
         FortuneReport report = getCompletedOwnedReport(memberId, guestId, reportId);
+        return toDetailResponse(report, category);
+    }
+
+    private FortuneReportDetailResponse toDetailResponse(
+            FortuneReport report,
+            FortuneReportCategory category
+    ) {
         FortuneReportResultParser.ParsedReport parsed = resultParser.parse(
                 report.getReportContent(), report.getManseData()
         );
@@ -138,18 +153,72 @@ public class FortuneReportService {
         return new FortuneReportDetailResponse(report.getId(), category, detail, actionGuide);
     }
 
+    @Transactional
+    public ShareLinkResponse createShareLink(Long memberId, String guestId, Long reportId) {
+        FortuneReport report;
+        if (memberId != null) {
+            memberService.getActiveMember(memberId);
+            report = fortuneReportRepository.findOwnedByIdForUpdate(reportId, memberId)
+                    .orElseThrow(() -> new CustomException(FortuneReportErrorCode.REPORT_NOT_FOUND));
+        } else {
+            Long guestSessionId = getValidGuestSession(guestId).getId();
+            report = fortuneReportRepository.findGuestOwnedByIdForUpdate(reportId, guestSessionId)
+                    .orElseThrow(() -> new CustomException(FortuneReportErrorCode.REPORT_NOT_FOUND));
+        }
+
+        validateCompletedReport(report);
+        if (report.getShareToken() == null) {
+            report.enableSharing(createUniqueShareToken());
+        }
+
+        return ShareLinkResponse.forFortuneReport(
+                report.getShareToken(),
+                shareUrlService.fortuneReportUrl(report.getShareToken())
+        );
+    }
+
+    public FortuneReportDetailResponse getSharedDetail(String shareToken, String categoryValue) {
+        FortuneReportCategory category = FortuneReportCategory.from(categoryValue);
+        if (category == null) {
+            throw new CustomException(FortuneReportErrorCode.INVALID_REPORT_CATEGORY);
+        }
+        return toDetailResponse(getCompletedSharedReport(shareToken), category);
+    }
+
+    private FortuneReport getCompletedSharedReport(String shareToken) {
+        if (shareToken == null || shareToken.length() != 32) {
+            throw new CustomException(FortuneReportErrorCode.SHARED_REPORT_NOT_FOUND);
+        }
+        FortuneReport report = fortuneReportRepository.findByShareToken(shareToken)
+                .orElseThrow(() -> new CustomException(FortuneReportErrorCode.SHARED_REPORT_NOT_FOUND));
+        validateCompletedReport(report);
+        return report;
+    }
+
+    private String createUniqueShareToken() {
+        String token;
+        do {
+            token = UUID.randomUUID().toString().replace("-", "");
+        } while (fortuneReportRepository.existsByShareToken(token));
+        return token;
+    }
+
     private FortuneReport getCompletedOwnedReport(Long memberId, String guestId, Long reportId) {
         FortuneReport report = memberId != null
                 ? getMemberOwnedReport(memberId, reportId)
                 : getGuestOwnedReport(getValidGuestSession(guestId).getId(), reportId);
 
+        validateCompletedReport(report);
+        return report;
+    }
+
+    private void validateCompletedReport(FortuneReport report) {
         if (report.getStatus() != FortuneReportStatus.COMPLETED) {
             throw new CustomException(FortuneReportErrorCode.REPORT_NOT_COMPLETED);
         }
         if (report.getReportContent() == null || report.getReportContent().isBlank()) {
             throw new CustomException(FortuneReportErrorCode.REPORT_CONTENT_UNAVAILABLE);
         }
-        return report;
     }
 
     @Transactional
