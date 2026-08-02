@@ -8,9 +8,11 @@ import com.umc.todayter.domain.place.dto.response.ExploreFiltersResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceListItemResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceListResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceDetailResponse;
+import com.umc.todayter.domain.place.dto.response.PlaceBookmarkResponse;
 import com.umc.todayter.domain.place.dto.response.RegionFilterResponse;
 import com.umc.todayter.domain.place.dto.response.ThemeFilterResponse;
 import com.umc.todayter.domain.place.entity.Place;
+import com.umc.todayter.domain.place.entity.SavedPlace;
 import com.umc.todayter.domain.place.enums.ElementType;
 import com.umc.todayter.domain.place.enums.RegionCode;
 import com.umc.todayter.domain.place.enums.ThemeType;
@@ -84,6 +86,29 @@ public class PlaceService {
 
     public void validateActivePlace(Long placeId) {
         getActivePlace(placeId);
+    }
+
+    @Transactional
+    public PlaceBookmarkResponse updateBookmark(Long placeId, boolean isSaved) {
+        Long memberId = SecurityUtil.getCurrentMemberId();
+        Member member = memberRepository.findById(memberId)
+                .filter(Member::isActive)
+                .orElseThrow(() -> new CustomException(MemberErrorCode.MEMBER_NOT_FOUND));
+        Place place = getActivePlace(placeId);
+
+        if (isSaved) {
+            savedPlaceRepository.findByMemberIdAndPlaceId(memberId, placeId)
+                    .orElseGet(() -> savedPlaceRepository.save(
+                            SavedPlace.builder()
+                                    .member(member)
+                                    .place(place)
+                                    .build()
+                    ));
+        } else {
+            savedPlaceRepository.deleteByMemberIdAndPlaceId(memberId, placeId);
+        }
+
+        return new PlaceBookmarkResponse(placeId, isSaved);
     }
 
     private Place getActivePlace(Long placeId) {
