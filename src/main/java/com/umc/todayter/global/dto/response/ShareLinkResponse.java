@@ -10,7 +10,7 @@ public record ShareLinkResponse(
         return new ShareLinkResponse(shareToken, shareUrl);
     }
 
-    public static ShareLinkResponse forPlace(String shareUrl) {
-        return new ShareLinkResponse(null, shareUrl);
+    public static ShareLinkResponse forPlace(String shareToken, String shareUrl) {
+        return new ShareLinkResponse(shareToken, shareUrl);
     }
 }

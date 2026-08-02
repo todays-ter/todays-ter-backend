@@ -85,4 +85,4 @@ management:
 share:
   frontend-base-url: ${FRONTEND_BASE_URL:https://todays-ter-frontend.vercel.app}
   fortune-report-path: ${FORTUNE_REPORT_SHARE_PATH:/fortune-reports/shared/{shareToken}}
-  recommended-place-path: ${RECOMMENDED_PLACE_SHARE_PATH:/recommendations/places/{placeId}}
+  recommended-place-path: ${RECOMMENDED_PLACE_SHARE_PATH:/recommendations/places/shared/{shareToken}}

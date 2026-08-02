@@ -15,8 +15,8 @@ public class ShareUrlService {
         return build(properties.fortuneReportPath(), shareToken);
     }
 
-    public String recommendedPlaceUrl(Long placeId) {
-        return build(properties.recommendedPlacePath(), placeId);
+    public String recommendedPlaceUrl(String shareToken) {
+        return build(properties.recommendedPlacePath(), shareToken);
     }
 
     private String build(String path, Object pathVariable) {
