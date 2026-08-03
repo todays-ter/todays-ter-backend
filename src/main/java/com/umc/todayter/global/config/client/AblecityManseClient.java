@@ -62,11 +62,9 @@ public class AblecityManseClient {
                     || !"success".equalsIgnoreCase(response.path("status").asText())
                     || response.path("data").isMissingNode()) {
                 String status = response == null ? "NO_RESPONSE" : response.path("status").asText("UNKNOWN");
-                String message = response == null ? "empty response" : response.path("message").asText("missing data");
-                log.warn("Ablecity API returned an invalid response. status={}, message={}", status, message);
+                log.warn("Ablecity API returned an invalid response. status={}", status);
                 throw new FortuneReportGenerationException(
-                        "ABLECITY_INVALID_RESPONSE",
-                        "만세력 정보를 생성하지 못했습니다."
+                        "ABLECITY_INVALID_RESPONSE", "만세력 정보를 생성하지 못했습니다."
                 );
             }
 
@@ -79,9 +77,8 @@ public class AblecityManseClient {
             throw e;
         } catch (RestClientResponseException e) {
             log.warn(
-                    "Ablecity API request failed. status={}, response={}",
-                    e.getStatusCode(),
-                    abbreviate(e.getResponseBodyAsString(), 1_000)
+                    "Ablecity API 요청 실패. status={}",
+                    e.getStatusCode()
             );
             throw new FortuneReportGenerationException(
                     "ABLECITY_API_FAILED",
@@ -89,7 +86,7 @@ public class AblecityManseClient {
                     e
             );
         } catch (RestClientException e) {
-            log.warn("Ablecity API communication failed: {}", e.getMessage());
+            log.warn("Ablecity API 통신 실패. exception={}", e.getClass().getSimpleName());
             throw new FortuneReportGenerationException(
                     "ABLECITY_API_FAILED",
                     "만세력 정보를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.",
@@ -130,10 +127,4 @@ public class AblecityManseClient {
         }
     }
 
-    private String abbreviate(String value, int maxLength) {
-        if (value == null || value.length() <= maxLength) {
-            return value;
-        }
-        return value.substring(0, maxLength) + "...";
-    }
 }

@@ -11,4 +11,10 @@ public record AblecityApiProperties(
         Duration connectTimeout,
         Duration readTimeout
 ) {
+    @Override
+    public String toString() {
+        return "AblecityApiProperties[baseUrl=" + baseUrl
+                + ", apiKey=[REDACTED], connectTimeout=" + connectTimeout
+                + ", readTimeout=" + readTimeout + "]";
+    }
 }
