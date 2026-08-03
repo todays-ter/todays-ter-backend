@@ -32,6 +32,9 @@ public class OpenAiFortuneReportClient {
         if (!StringUtils.hasText(properties.apiKey())) {
             throw new FortuneReportGenerationException("OPENAI_API_KEY_MISSING", "AI 연동 설정을 확인해 주세요.");
         }
+        if (!StringUtils.hasText(properties.model())) {
+            throw new FortuneReportGenerationException("OPENAI_MODEL_MISSING", "AI 연동 설정을 확인해 주세요.");
+        }
 
         Map<String, Object> request = Map.of(
                 "model", properties.model(),
