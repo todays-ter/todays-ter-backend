@@ -153,7 +153,16 @@ public class RecommendationMatchingService {
     }
 
     private ElementType toElementType(FiveElement element) {
-        return element == null ? null : ElementType.valueOf(element.name());
+        if (element == null) {
+            return null;
+        }
+        return switch (element) {
+            case WOOD -> ElementType.WOOD;
+            case FIRE -> ElementType.FIRE;
+            case EARTH -> ElementType.EARTH;
+            case METAL -> ElementType.METAL;
+            case WATER -> ElementType.WATER;
+        };
     }
 
     private static Map<ElementType, ElementType> generatingCycle() {
