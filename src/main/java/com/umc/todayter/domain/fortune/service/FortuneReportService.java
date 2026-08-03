@@ -53,7 +53,7 @@ public class FortuneReportService {
     }
 
     private FortuneReportCreateResponse createForMember(Long memberId) {
-        memberService.getActiveMember(memberId);
+        memberService.getActiveMemberForUpdate(memberId);
 
         fortuneReportRepository
                 .findFirstByMemberIdAndStatusOrderByIdDesc(memberId, FortuneReportStatus.PROCESSING)
@@ -75,7 +75,7 @@ public class FortuneReportService {
     }
 
     private FortuneReportCreateResponse createForGuest(String guestId) {
-        GuestSession guestSession = getValidGuestSession(guestId);
+        GuestSession guestSession = getValidGuestSessionForUpdate(guestId);
 
         fortuneReportRepository
                 .findFirstByGuestSessionIdAndStatusOrderByIdDesc(
@@ -258,11 +258,21 @@ public class FortuneReportService {
     }
 
     private GuestSession getValidGuestSession(String guestId) {
+        return getValidGuestSession(guestId, false);
+    }
+
+    private GuestSession getValidGuestSessionForUpdate(String guestId) {
+        return getValidGuestSession(guestId, true);
+    }
+
+    private GuestSession getValidGuestSession(String guestId, boolean forUpdate) {
         if (guestId == null || guestId.isBlank()) {
             throw new CustomException(FortuneReportErrorCode.GUEST_COOKIE_REQUIRED);
         }
 
-        GuestSession guestSession = guestSessionRepository.findByGuestId(guestId)
+        GuestSession guestSession = (forUpdate
+                ? guestSessionRepository.findForUpdateByGuestId(guestId)
+                : guestSessionRepository.findByGuestId(guestId))
                 .orElseThrow(() -> new CustomException(FortuneReportErrorCode.GUEST_SESSION_NOT_FOUND));
 
         if (!guestSession.isUsable(LocalDateTime.now())) {
