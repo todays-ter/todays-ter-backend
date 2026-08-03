@@ -1,7 +1,12 @@
 package com.umc.todayter.domain.home.controller;
 
 import com.umc.todayter.domain.home.dto.response.HomeHeaderResponse;
+import com.umc.todayter.domain.home.dto.response.TodayEnergyElementResponse;
+import com.umc.todayter.domain.home.dto.response.TodayEnergyResponse;
 import com.umc.todayter.domain.home.service.HomeService;
+import com.umc.todayter.domain.home.service.TodayEnergyService;
+import com.umc.todayter.domain.fortune.enums.FiveElement;
+import com.umc.todayter.domain.fortune.exception.code.FortuneReportErrorCode;
 import com.umc.todayter.domain.place.controller.PlaceController;
 import com.umc.todayter.domain.place.dto.response.EditorPickResponse;
 import com.umc.todayter.domain.place.dto.response.ExploreFiltersResponse;
@@ -68,6 +73,9 @@ class HomeControllerTest {
 
     @MockitoBean
     private HomeService homeService;
+
+    @MockitoBean
+    private TodayEnergyService todayEnergyService;
 
     @MockitoBean
     private PlaceService placeService;
@@ -171,6 +179,65 @@ class HomeControllerTest {
     }
 
     @Test
+    void getTodayEnergyWithMemberContextReturnsOk() throws Exception {
+        CurrentUserContext context = CurrentUserContext.forMember(1L);
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(currentUserContextResolver.resolve(null)).thenReturn(context);
+        when(todayEnergyService.getTodayEnergy(context)).thenReturn(new TodayEnergyResponse(
+                LocalDate.of(2026, 8, 3),
+                new TodayEnergyElementResponse(FiveElement.WATER, FiveElement.WATER.getLabel()),
+                "summary"
+        ));
+
+        mockMvc.perform(get("/home/today-energy")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isSuccess").value(true))
+                .andExpect(jsonPath("$.code").value("COMMON200"))
+                .andExpect(jsonPath("$.result.date").value("2026-08-03"))
+                .andExpect(jsonPath("$.result.element.code").value("WATER"))
+                .andExpect(jsonPath("$.result.element.name").value(FiveElement.WATER.getLabel()))
+                .andExpect(jsonPath("$.result.description").value("summary"))
+                .andExpect(jsonPath("$.result.reportId").doesNotExist())
+                .andExpect(jsonPath("$.result.memberId").doesNotExist())
+                .andExpect(jsonPath("$.result.guestSessionId").doesNotExist())
+                .andExpect(jsonPath("$.result.guestId").doesNotExist())
+                .andExpect(jsonPath("$.result.onboardingId").doesNotExist())
+                .andExpect(jsonPath("$.result.status").doesNotExist())
+                .andExpect(jsonPath("$.result.currentStep").doesNotExist())
+                .andExpect(jsonPath("$.result.progress").doesNotExist())
+                .andExpect(jsonPath("$.result.reportContent").doesNotExist())
+                .andExpect(jsonPath("$.result.retryCount").doesNotExist())
+                .andExpect(jsonPath("$.result.completedAt").doesNotExist());
+
+        verify(currentUserContextResolver).resolve(null);
+        verify(todayEnergyService).getTodayEnergy(context);
+    }
+
+    @Test
+    void getTodayEnergyWithGuestContextReturnsOkAndPassesCookie() throws Exception {
+        CurrentUserContext context = CurrentUserContext.forGuest(10L, "guest-id");
+        when(currentUserContextResolver.resolve("guest-id")).thenReturn(context);
+        when(todayEnergyService.getTodayEnergy(context)).thenReturn(new TodayEnergyResponse(
+                LocalDate.of(2026, 8, 3),
+                new TodayEnergyElementResponse(FiveElement.FIRE, FiveElement.FIRE.getLabel()),
+                "guest summary"
+        ));
+
+        mockMvc.perform(get("/home/today-energy")
+                        .cookie(new Cookie(GuestCookieUtil.COOKIE_NAME, "guest-id")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.date").value("2026-08-03"))
+                .andExpect(jsonPath("$.result.element.code").value("FIRE"))
+                .andExpect(jsonPath("$.result.element.name").value(FiveElement.FIRE.getLabel()))
+                .andExpect(jsonPath("$.result.description").value("guest summary"));
+
+        verify(currentUserContextResolver).resolve("guest-id");
+        verify(todayEnergyService).getTodayEnergy(context);
+    }
+
+    @Test
     void resolverUnauthorizedReturnsUnauthorized() throws Exception {
         when(currentUserContextResolver.resolve(null)).thenThrow(new CustomException(ErrorCode.UNAUTHORIZED));
 
@@ -180,6 +247,44 @@ class HomeControllerTest {
                 .andExpect(jsonPath("$.code").value("COMMON401"));
 
         verify(currentUserContextResolver).resolve(null);
+    }
+
+    @Test
+    void todayEnergyResolverUnauthorizedReturnsUnauthorized() throws Exception {
+        when(currentUserContextResolver.resolve(null)).thenThrow(new CustomException(ErrorCode.UNAUTHORIZED));
+
+        mockMvc.perform(get("/home/today-energy"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.isSuccess").value(false))
+                .andExpect(jsonPath("$.code").value("COMMON401"));
+
+        verify(currentUserContextResolver).resolve(null);
+    }
+
+    @Test
+    void todayEnergyReportNotFoundReturnsNotFound() throws Exception {
+        CurrentUserContext context = CurrentUserContext.forGuest(10L, "guest-id");
+        when(currentUserContextResolver.resolve("guest-id")).thenReturn(context);
+        when(todayEnergyService.getTodayEnergy(context))
+                .thenThrow(new CustomException(FortuneReportErrorCode.REPORT_NOT_FOUND));
+
+        mockMvc.perform(get("/home/today-energy")
+                        .cookie(new Cookie(GuestCookieUtil.COOKIE_NAME, "guest-id")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("FORTUNE404_1"));
+    }
+
+    @Test
+    void todayEnergyReportContentUnavailableReturnsInternalServerError() throws Exception {
+        CurrentUserContext context = CurrentUserContext.forGuest(10L, "guest-id");
+        when(currentUserContextResolver.resolve("guest-id")).thenReturn(context);
+        when(todayEnergyService.getTodayEnergy(context))
+                .thenThrow(new CustomException(FortuneReportErrorCode.REPORT_CONTENT_UNAVAILABLE));
+
+        mockMvc.perform(get("/home/today-energy")
+                        .cookie(new Cookie(GuestCookieUtil.COOKIE_NAME, "guest-id")))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.code").value("FORTUNE500_1"));
     }
 
     @Test
@@ -206,10 +311,6 @@ class HomeControllerTest {
 
     @Test
     void unimplementedHomePathsAreNotPublic() throws Exception {
-        mockMvc.perform(get("/home/today-energy"))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("COMMON401"));
-
         mockMvc.perform(get("/home/energy-routines"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("COMMON401"));
