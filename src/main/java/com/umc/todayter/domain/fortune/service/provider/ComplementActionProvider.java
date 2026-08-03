@@ -1,4 +1,4 @@
-package com.umc.todayter.domain.fortune.service;
+package com.umc.todayter.domain.fortune.service.provider;
 
 import com.umc.todayter.domain.fortune.dto.response.FortuneReportResultResponse.ActionItem;
 import com.umc.todayter.domain.fortune.dto.response.FortuneReportResultResponse.ComplementActionGuide;

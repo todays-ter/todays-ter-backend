@@ -83,6 +83,9 @@ public class SecurityConfig {
                                 "/places/explore-filters",
                                 "/places/*/thumbnail"
                         ).permitAll()
+                        .requestMatchers(HttpMethod.GET, "/recommendations/places/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/recommendations/places/shared/*").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/recommendations/places/*/share").permitAll()
                         .requestMatchers(HttpMethod.GET, "/home/header").permitAll()
 
                         // 추가

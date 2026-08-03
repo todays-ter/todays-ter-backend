@@ -1,13 +1,13 @@
-name,address,latitude,longitude,elementType,terrainType,loveScore,relationshipScore,careerScore,studyScore,restScore,transitionScore,themeType,summary,description,editorPick,active
-북촌한옥마을,서울특별시 종로구,37.5826,126.983,EARTH,한옥/골목,22,28,18,20,24,18,RELATIONSHIP,한옥/골목,공식 도보관광 코스. 한옥·골목·사진 동선은 2030 데이트/산책과 맞음.,false,true
-삼청동길,서울특별시 종로구,37.585,126.9819,WOOD,카페거리/산책,24,26,18,24,28,22,HEALTH,카페/산책,북촌·안국권과 묶이는 산책/카페 동선. 감성 사진·데이트 후보.,false,true
-서촌·통인시장,서울특별시 종로구,37.5807,126.9707,EARTH,전통시장/골목,22,28,18,20,24,18,RELATIONSHIP,골목/시장,서촌 한옥·공예·시장 동선. 골목 기반 관계/휴식 추천에 적합.,false,true
-인왕산 수성동계곡,서울특별시 종로구,37.584,126.9628,WATER,계곡/산책,20,22,18,28,30,28,HEALTH,계곡/산책,수기 강한 자연 후보. 2030 핫플보다는 회복·정화 콘셉트에 강함.,false,false
-인왕산 초소책방,서울특별시 종로구,37.5848,126.962,FIRE,전망/카페,28,24,24,16,12,26,LOVE,산/전망/카페,전망·카페·산책이 결합된 전환형 장소. 인왕산 코스와 묶기 좋음.,false,true
-청운문학도서관,서울특별시 종로구,37.591,126.9697,WOOD,도서관/숲,24,26,18,24,28,22,HEALTH,도서관/숲,조용한 학업·자기정리 후보. 대형 핫플은 아니지만 오늘의터 톤에 적합.,false,false
-국립현대미술관 서울,서울특별시 종로구,37.5796,126.98,METAL,미술관/전시/도심문화,18,16,28,22,14,26,CAREER,미술관/전시,환기미술관 대체. 삼청·안국권의 대표 전시 공간이고 2030 전시 데이트·문화 동선으로 안정적.,true,true
-대학로·마로니에공원,서울특별시 종로구,37.5803,127.0025,EARTH,공연거리/광장,28,24,24,16,12,26,LOVE,공연/광장,공연·연극·광장 기반 2030 만남/데이트 동선.,true,true
-낙산공원,서울특별시 종로구,37.5807,127.007,EARTH,전망/성곽길,28,24,24,16,12,26,LOVE,성곽/전망,전망·야경·성곽 산책으로 인스타 공개 릴스 노출 확인.,true,true
+name,address,latitude,longitude,elementType,terrainType,loveScore,relationshipScore,careerScore,studyScore,restScore,transitionScore,themeType,summary,description,editorPick,active,mapUrl
+북촌한옥마을,서울특별시 종로구,37.5826,126.983,EARTH,한옥/골목,22,28,18,20,24,18,RELATIONSHIP,한옥/골목,공식 도보관광 코스. 한옥·골목·사진 동선은 2030 데이트/산책과 맞음.,false,true,https://map.naver.com/p/search/%EB%B6%81%EC%B4%8C%ED%95%9C%EC%98%A5%EB%A7%88%EC%9D%84%20%EC%84%9C%EC%9A%B8
+삼청동길,서울특별시 종로구,37.585,126.9819,WOOD,카페거리/산책,24,26,18,24,28,22,HEALTH,카페/산책,북촌·안국권과 묶이는 산책/카페 동선. 감성 사진·데이트 후보.,false,true,https://map.naver.com/p/search/%EC%82%BC%EC%B2%AD%EB%8F%99%EA%B8%B8%20%EC%84%9C%EC%9A%B8
+서촌·통인시장,서울특별시 종로구,37.5807,126.9707,EARTH,전통시장/골목,22,28,18,20,24,18,RELATIONSHIP,골목/시장,서촌 한옥·공예·시장 동선. 골목 기반 관계/휴식 추천에 적합.,false,true,https://map.naver.com/p/search/%ED%86%B5%EC%9D%B8%EC%8B%9C%EC%9E%A5%20%EC%84%9C%EC%B4%8C
+인왕산 수성동계곡,서울특별시 종로구,37.584,126.9628,WATER,계곡/산책,20,22,18,28,30,28,HEALTH,계곡/산책,수기 강한 자연 후보. 2030 핫플보다는 회복·정화 콘셉트에 강함.,false,false,https://map.naver.com/p/search/%EC%9D%B8%EC%99%95%EC%82%B0%20%EC%88%98%EC%84%B1%EB%8F%99%EA%B3%84%EA%B3%A1
+인왕산 초소책방,서울특별시 종로구,37.5848,126.962,FIRE,전망/카페,28,24,24,16,12,26,LOVE,산/전망/카페,전망·카페·산책이 결합된 전환형 장소. 인왕산 코스와 묶기 좋음.,false,true,https://map.naver.com/p/search/%EC%9D%B8%EC%99%95%EC%82%B0%20%EC%B4%88%EC%86%8C%EC%B1%85%EB%B0%A9
+청운문학도서관,서울특별시 종로구,37.591,126.9697,WOOD,도서관/숲,24,26,18,24,28,22,HEALTH,도서관/숲,조용한 학업·자기정리 후보. 대형 핫플은 아니지만 오늘의터 톤에 적합.,false,false,https://map.naver.com/p/search/%EC%B2%AD%EC%9A%B4%EB%AC%B8%ED%95%99%EB%8F%84%EC%84%9C%EA%B4%80
+국립현대미술관 서울,서울특별시 종로구,37.5796,126.98,METAL,미술관/전시/도심문화,18,16,28,22,14,26,CAREER,미술관/전시,환기미술관 대체. 삼청·안국권의 대표 전시 공간이고 2030 전시 데이트·문화 동선으로 안정적.,true,true,https://map.naver.com/p/search/%EA%B5%AD%EB%A6%BD%ED%98%84%EB%8C%80%EB%AF%B8%EC%88%A0%EA%B4%80%20%EC%84%9C%EC%9A%B8
+대학로·마로니에공원,서울특별시 종로구,37.5803,127.0025,EARTH,공연거리/광장,28,24,24,16,12,26,LOVE,공연/광장,공연·연극·광장 기반 2030 만남/데이트 동선.,true,true,https://map.naver.com/p/search/%EB%A7%88%EB%A1%9C%EB%8B%88%EC%97%90%EA%B3%B5%EC%9B%90%20%EB%8C%80%ED%95%99%EB%A1%9C
+낙산공원,서울특별시 종로구,37.5807,127.007,EARTH,전망/성곽길,28,24,24,16,12,26,LOVE,성곽/전망,전망·야경·성곽 산책으로 인스타 공개 릴스 노출 확인.,true,true,https://map.naver.com/p/search/%EB%82%99%EC%82%B0%EA%B3%B5%EC%9B%90%20%EC%84%9C%EC%9A%B8
 용리단길,서울특별시 용산구,37.5296,126.9704,EARTH,골목상권/카페/맛집,22,28,18,20,24,18,RELATIONSHIP,골목상권/카페/맛집,이화벽화마을 대체. 카페·맛집·소품샵 동선이 강해 관계/연애/휴식에 적합.,true,true
 성북동 카페거리,서울특별시 성북구,37.5945,126.9975,WOOD,카페거리/동네,24,26,18,24,28,22,HEALTH,카페/동네,북악·한양도성권과 묶이는 조용한 카페 산책 후보.,false,true
 서순라길,서울특별시 종로구,37.5742,126.994,EARTH,돌담길/카페거리/골목,22,28,18,20,24,18,RELATIONSHIP,돌담길/카페/골목,와룡공원 제거 후 대체. 돌담길·카페·식당·바가 결합된 종로권 산책/데이트 동선.,true,true

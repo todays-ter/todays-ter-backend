@@ -1,6 +1,6 @@
 package com.umc.todayter.domain.fortune.event;
 
-import com.umc.todayter.domain.fortune.service.FortuneReportGenerationWorker;
+import com.umc.todayter.domain.fortune.service.worker.FortuneReportGenerationWorker;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;

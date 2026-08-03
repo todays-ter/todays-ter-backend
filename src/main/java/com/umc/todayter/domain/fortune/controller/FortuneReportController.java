@@ -7,6 +7,7 @@ import com.umc.todayter.domain.fortune.dto.response.FortuneReportSummaryResponse
 import com.umc.todayter.domain.fortune.service.FortuneReportService;
 import com.umc.todayter.global.apiPayload.response.ApiResponse;
 import com.umc.todayter.global.apiPayload.response.SuccessCode;
+import com.umc.todayter.global.dto.response.ShareLinkResponse;
 import com.umc.todayter.global.security.SecurityUtil;
 import com.umc.todayter.global.util.GuestCookieUtil;
 import io.swagger.v3.oas.annotations.Operation;
@@ -75,6 +76,30 @@ public class FortuneReportController {
         FortuneReportDetailResponse result = fortuneReportService.getDetail(
                 SecurityUtil.getCurrentMemberIdOrNull(), guestId, reportId, category
         );
+        return ResponseEntity.ok(ApiResponse.onSuccess(result, SuccessCode.OK));
+    }
+
+    @Operation(summary = "리포트 공유 링크 생성", description = "완료된 본인 리포트를 비로그인 사용자도 볼 수 있는 공유 링크를 생성합니다.")
+    @SecurityRequirements
+    @PostMapping("/{reportId}/share")
+    public ResponseEntity<ApiResponse<ShareLinkResponse>> createShareLink(
+            @CookieValue(name = GuestCookieUtil.COOKIE_NAME, required = false) String guestId,
+            @PathVariable Long reportId
+    ) {
+        ShareLinkResponse result = fortuneReportService.createShareLink(
+                SecurityUtil.getCurrentMemberIdOrNull(), guestId, reportId
+        );
+        return ResponseEntity.ok(ApiResponse.onSuccess(result, SuccessCode.OK));
+    }
+
+    @Operation(summary = "공유 리포트 카테고리 조회", description = "공유 토큰으로 연애, 건강 등 모든 상세 카테고리를 공개 조회합니다.")
+    @SecurityRequirements
+    @GetMapping("/shared/{shareToken}/details")
+    public ResponseEntity<ApiResponse<FortuneReportDetailResponse>> getSharedDetail(
+            @PathVariable String shareToken,
+            @RequestParam String category
+    ) {
+        FortuneReportDetailResponse result = fortuneReportService.getSharedDetail(shareToken, category);
         return ResponseEntity.ok(ApiResponse.onSuccess(result, SuccessCode.OK));
     }
 

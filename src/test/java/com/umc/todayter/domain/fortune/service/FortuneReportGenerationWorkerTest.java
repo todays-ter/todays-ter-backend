@@ -1,5 +1,7 @@
 package com.umc.todayter.domain.fortune.service;
 
+import com.umc.todayter.domain.fortune.service.provider.FortuneReportPromptProvider;
+import com.umc.todayter.domain.fortune.service.worker.FortuneReportGenerationWorker;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import com.umc.todayter.global.config.client.OpenAiFortuneReportClient;

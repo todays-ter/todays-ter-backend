@@ -24,7 +24,7 @@ public class GuestFortuneReportTransferService {
             return;
         }
 
-        GuestSession guestSession = guestSessionRepository.findByGuestId(guestId).orElse(null);
+        GuestSession guestSession = guestSessionRepository.findForUpdateByGuestId(guestId).orElse(null);
         if (guestSession == null || !guestSession.isUsable(LocalDateTime.now())) {
             return;
         }

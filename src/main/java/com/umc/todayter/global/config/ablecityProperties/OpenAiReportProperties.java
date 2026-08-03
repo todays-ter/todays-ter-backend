@@ -13,4 +13,12 @@ public record OpenAiReportProperties(
         Duration connectTimeout,
         Duration readTimeout
 ) {
+    @Override
+    public String toString() {
+        return "OpenAiReportProperties[baseUrl=" + baseUrl
+                + ", apiKey=[REDACTED], model=" + model
+                + ", promptResource=" + promptResource
+                + ", connectTimeout=" + connectTimeout
+                + ", readTimeout=" + readTimeout + "]";
+    }
 }

@@ -9,17 +9,17 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+// TODO: Flyway/Liquibase 도입 시 기존 DB에도 chk_fortune_reports_single_owner XOR 제약을 추가한다.
 @Table(name = "fortune_reports", indexes = {
         @Index(name = "idx_fortune_reports_member_status", columnList = "member_id,status"),
-        @Index(name = "idx_fortune_reports_guest_status", columnList = "guest_session_id,status")
+        @Index(name = "idx_fortune_reports_guest_status", columnList = "guest_session_id,status"),
+        @Index(name = "idx_fortune_reports_share_token", columnList = "share_token", unique = true)
 }, check = @CheckConstraint(
         name = "chk_fortune_reports_single_owner",
         constraint = "(member_id is null) <> (guest_session_id is null)"
@@ -52,12 +52,14 @@ public class FortuneReport extends BaseEntity {
     @Column(name = "retry_count", nullable = false)
     private int retryCount;
 
-    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "manse_data", columnDefinition = "json")
     private String manseData;
 
     @Column(name = "report_content", columnDefinition = "LONGTEXT")
     private String reportContent;
+
+    @Column(name = "share_token", length = 32, unique = true)
+    private String shareToken;
 
     @Column(name = "failure_code", length = 50)
     private String failureCode;
@@ -73,6 +75,9 @@ public class FortuneReport extends BaseEntity {
 
     @Column(name = "failed_at")
     private LocalDateTime failedAt;
+
+    private static final int FAILURE_CODE_MAX_LENGTH = 50;
+    private static final int FAILURE_MESSAGE_MAX_LENGTH = 255;
 
     public static FortuneReport createForMember(Long memberId, Onboarding onboarding) {
         if (memberId == null) {
@@ -111,6 +116,15 @@ public class FortuneReport extends BaseEntity {
         }
         this.memberId = memberId;
         this.guestSessionId = null;
+    }
+
+    public void enableSharing(String shareToken) {
+        if (shareToken == null || shareToken.length() != 32) {
+            throw new IllegalArgumentException("공유 토큰 형식이 올바르지 않습니다.");
+        }
+        if (this.shareToken == null) {
+            this.shareToken = shareToken;
+        }
     }
 
     public void startAttempt() {
@@ -161,8 +175,15 @@ public class FortuneReport extends BaseEntity {
     public void fail(String failureCode, String failureMessage) {
         status = FortuneReportStatus.FAILED;
         currentStep = FortuneReportStep.FAILED;
-        this.failureCode = failureCode;
-        this.failureMessage = failureMessage;
+        this.failureCode = truncate(failureCode, FAILURE_CODE_MAX_LENGTH);
+        this.failureMessage = truncate(failureMessage, FAILURE_MESSAGE_MAX_LENGTH);
         failedAt = LocalDateTime.now();
+    }
+
+    private static String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength);
     }
 }
