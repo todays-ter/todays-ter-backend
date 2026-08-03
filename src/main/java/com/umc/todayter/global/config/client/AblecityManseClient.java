@@ -82,15 +82,13 @@ public class AblecityManseClient {
             );
             throw new FortuneReportGenerationException(
                     "ABLECITY_API_FAILED",
-                    "만세력 정보를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-                    e
+                    "만세력 정보를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요."
             );
         } catch (RestClientException e) {
             log.warn("Ablecity API 통신 실패. exception={}", e.getClass().getSimpleName());
             throw new FortuneReportGenerationException(
                     "ABLECITY_API_FAILED",
-                    "만세력 정보를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-                    e
+                    "만세력 정보를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요."
             );
         }
     }
