@@ -1,5 +1,6 @@
 package com.umc.todayter.domain.home.controller;
 
+import com.umc.todayter.domain.home.service.EnergyRoutineService;
 import com.umc.todayter.domain.home.service.HomeService;
 import com.umc.todayter.domain.home.service.TodayEnergyService;
 import com.umc.todayter.domain.member.repository.MemberRepository;
@@ -59,6 +60,9 @@ class HomeHeaderInvalidJwtGuestFallbackTest {
 
     @MockitoBean
     private TodayEnergyService todayEnergyService;
+
+    @MockitoBean
+    private EnergyRoutineService energyRoutineService;
 
     @MockitoBean
     private JwtProvider jwtProvider;

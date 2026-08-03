@@ -2,6 +2,8 @@ package com.umc.todayter.domain.home.controller;
 
 import com.umc.todayter.domain.home.dto.response.HomeHeaderResponse;
 import com.umc.todayter.domain.home.dto.response.TodayEnergyResponse;
+import com.umc.todayter.domain.home.dto.response.EnergyRoutinesResponse;
+import com.umc.todayter.domain.home.service.EnergyRoutineService;
 import com.umc.todayter.domain.home.service.HomeService;
 import com.umc.todayter.domain.home.service.TodayEnergyService;
 import com.umc.todayter.global.apiPayload.response.ApiResponse;
@@ -28,6 +30,7 @@ public class HomeController {
     private final CurrentUserContextResolver currentUserContextResolver;
     private final HomeService homeService;
     private final TodayEnergyService todayEnergyService;
+    private final EnergyRoutineService energyRoutineService;
 
     @Operation(
             summary = "홈 인사 헤더 조회",
@@ -70,6 +73,30 @@ public class HomeController {
     ) {
         CurrentUserContext context = currentUserContextResolver.resolve(guestId);
         TodayEnergyResponse result = todayEnergyService.getTodayEnergy(context);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.onSuccess(result, SuccessCode.OK));
+    }
+
+    @Operation(
+            summary = "홈 에너지 루틴 조회",
+            description = """
+                    Bearer JWT 또는 guest_id 쿠키가 필요합니다.
+                    둘 다 있으면 JWT 회원을 우선합니다.
+                    최신 완료 사주 리포트의 보완 오행을 기준으로
+                    최대 3개의 에너지 루틴을 반환합니다.
+                    """
+    )
+    @GetMapping("/energy-routines")
+    public ResponseEntity<ApiResponse<EnergyRoutinesResponse>> getEnergyRoutines(
+            @CookieValue(
+                    name = GuestCookieUtil.COOKIE_NAME,
+                    required = false
+            ) String guestId
+    ) {
+        CurrentUserContext context = currentUserContextResolver.resolve(guestId);
+        EnergyRoutinesResponse result = energyRoutineService.getEnergyRoutines(context);
 
         return ResponseEntity
                 .status(HttpStatus.OK)
