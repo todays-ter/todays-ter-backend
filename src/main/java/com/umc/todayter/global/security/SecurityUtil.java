@@ -12,10 +12,18 @@ public final class SecurityUtil {
     }
 
     public static Long getCurrentMemberId() {
+        Long memberId = getCurrentMemberIdOrNull();
+        if (memberId != null) {
+            return memberId;
+        }
+        throw new CustomException(ErrorCode.UNAUTHORIZED);
+    }
+
+    public static Long getCurrentMemberIdOrNull() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication == null || !authentication.isAuthenticated() || authentication instanceof AnonymousAuthenticationToken) {
-            throw new CustomException(ErrorCode.UNAUTHORIZED);
+            return null;
         }
 
         Object principal = authentication.getPrincipal();
@@ -23,7 +31,6 @@ public final class SecurityUtil {
         if (principal instanceof AuthPrincipal authPrincipal) {
             return authPrincipal.getMemberId();
         }
-
-        throw new CustomException(ErrorCode.UNAUTHORIZED);
+        return null;
     }
 }

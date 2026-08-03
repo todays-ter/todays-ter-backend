@@ -2,6 +2,7 @@ package com.umc.todayter.domain.onboarding.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.umc.todayter.domain.onboarding.enums.CalendarType;
+import com.umc.todayter.domain.onboarding.enums.Gender;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
@@ -11,6 +12,9 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 
 public record GuestSajuRequest(
+        @NotNull(message = "성별은 필수입니다.")
+        Gender gender,
+
         @NotNull(message = "달력 유형은 필수입니다.")
         CalendarType calendarType,
 

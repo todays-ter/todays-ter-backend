@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.umc.todayter.domain.onboarding.entity.Onboarding;
 import com.umc.todayter.domain.onboarding.enums.CalendarType;
 import com.umc.todayter.domain.onboarding.enums.ConcernType;
+import com.umc.todayter.domain.onboarding.enums.Gender;
 import com.umc.todayter.domain.onboarding.enums.OnboardingStep;
 
 import java.time.LocalDate;
@@ -11,6 +12,7 @@ import java.time.LocalTime;
 import java.util.List;
 
 public record GuestOnboardingResponse(
+        Gender gender,
         CalendarType calendarType,
 
         @JsonFormat(pattern = "yyyy-MM-dd")
@@ -27,6 +29,7 @@ public record GuestOnboardingResponse(
         List<ConcernType> concernTypes = onboarding.getConcernTypes() == null ? List.of() : List.copyOf(onboarding.getConcernTypes());
 
         return new GuestOnboardingResponse(
+                onboarding.getGender(),
                 onboarding.getCalendarType(),
                 onboarding.getBirthDate(),
                 onboarding.getBirthTime(),

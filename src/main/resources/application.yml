@@ -14,12 +14,12 @@ spring:
   jpa:
     database: mysql
     database-platform: org.hibernate.dialect.MySQLDialect
-    show-sql: true
+    show-sql: false
     hibernate:
       ddl-auto: update
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false
         default_batch_fetch_size: 100
 
   servlet:
@@ -46,6 +46,21 @@ google:
     thumbnail-max-width: 800
     connect-timeout: 3s
     read-timeout: 5s
+
+fortune-report:
+  max-retries: ${FORTUNE_REPORT_MAX_RETRIES:10}
+  ablecity:
+    base-url: ${ABLECITY_API_BASE_URL:https://api.ablecity.kr}
+    api-key: ${ABLECITY_API_KEY:}
+    connect-timeout: 3s
+    read-timeout: 10s
+  openai:
+    base-url: ${OPENAI_API_BASE_URL:https://api.openai.com}
+    api-key: ${OPENAI_API_KEY}
+    model: ${OPENAI_MODEL:gpt-5.6-luna}
+    prompt-resource: classpath:prompts/fortune-report.txt
+    connect-timeout: 3s
+    read-timeout: 120s
     
 kakao:
   oauth:
@@ -58,7 +73,8 @@ kakao:
 logging:
   level:
     root: INFO
-    org.hibernate.SQL: DEBUG
+    org.hibernate.SQL: OFF
+    org.hibernate.orm.jdbc.bind: OFF
 
 management:
   endpoints:
