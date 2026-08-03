@@ -3,6 +3,7 @@ package com.umc.todayter.domain.place.service;
 import com.umc.todayter.domain.member.entity.Member;
 import com.umc.todayter.domain.member.exception.MemberErrorCode;
 import com.umc.todayter.domain.member.repository.MemberRepository;
+import com.umc.todayter.domain.member.enums.MemberStatus;
 import com.umc.todayter.domain.place.dto.response.ElementFilterResponse;
 import com.umc.todayter.domain.place.dto.response.ExploreFiltersResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceListItemResponse;
@@ -128,8 +129,7 @@ public class PlaceService {
     @Transactional
     public PlaceBookmarkResponse updateBookmark(Long placeId, boolean isSaved) {
         Long memberId = SecurityUtil.getCurrentMemberId();
-        Member member = memberRepository.findById(memberId)
-                .filter(Member::isActive)
+        Member member = memberRepository.findByIdAndStatusForUpdate(memberId, MemberStatus.ACTIVE)
                 .orElseThrow(() -> new CustomException(MemberErrorCode.MEMBER_NOT_FOUND));
         Place place = getActivePlace(placeId);
 
