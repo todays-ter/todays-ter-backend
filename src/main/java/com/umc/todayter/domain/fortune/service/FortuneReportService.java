@@ -69,7 +69,7 @@ public class FortuneReportService {
         }
 
         FortuneReport report = fortuneReportRepository.save(FortuneReport.createForMember(memberId, onboarding));
-        eventPublisher.publishEvent(new FortuneReportGenerationRequestedEvent(report.getId()));
+        generateOrApplyMockResult(report);
 
         return FortuneReportCreateResponse.from(report);
     }
@@ -95,9 +95,29 @@ public class FortuneReportService {
         FortuneReport report = fortuneReportRepository.save(
                 FortuneReport.createForGuest(guestSession.getId(), onboarding)
         );
-        eventPublisher.publishEvent(new FortuneReportGenerationRequestedEvent(report.getId()));
+        generateOrApplyMockResult(report);
 
         return FortuneReportCreateResponse.from(report);
+    }
+
+    private void generateOrApplyMockResult(FortuneReport report) {
+        if (!properties.mockEnabled()) {
+            eventPublisher.publishEvent(new FortuneReportGenerationRequestedEvent(report.getId()));
+            return;
+        }
+
+        Long templateReportId = properties.mockTemplateReportId();
+        if (templateReportId == null) {
+            throw new CustomException(FortuneReportErrorCode.REPORT_CONTENT_UNAVAILABLE);
+        }
+
+        FortuneReport template = fortuneReportRepository.findById(templateReportId)
+                .filter(source -> source.getStatus() == FortuneReportStatus.COMPLETED)
+                .filter(source -> source.getManseData() != null && !source.getManseData().isBlank())
+                .filter(source -> source.getReportContent() != null && !source.getReportContent().isBlank())
+                .orElseThrow(() -> new CustomException(FortuneReportErrorCode.REPORT_CONTENT_UNAVAILABLE));
+
+        report.completeWithGeneratedResult(template.getManseData(), template.getReportContent());
     }
 
     public FortuneReportStatusResponse getStatus(Long memberId, String guestId, Long reportId) {
