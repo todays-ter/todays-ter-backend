@@ -1,5 +1,6 @@
 package com.umc.todayter.domain.member.service;
 
+import com.umc.todayter.domain.member.dto.response.MemberInfoResponse;
 import com.umc.todayter.domain.member.entity.Member;
 import com.umc.todayter.domain.member.enums.MemberStatus;
 import com.umc.todayter.domain.member.exception.MemberErrorCode;
@@ -15,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class MemberService {
 
     private final MemberRepository memberRepository;
-    private final MemberCreationService memberCreationService;
 
     public Member getActiveMember(Long memberId) {
         return memberRepository
@@ -23,17 +23,28 @@ public class MemberService {
                 .orElseThrow(() -> new CustomException(MemberErrorCode.MEMBER_NOT_FOUND));
     }
 
+    @Transactional
+    public Member getActiveMemberForUpdate(Long memberId) {
+        return memberRepository
+                .findByIdAndStatusForUpdate(memberId, MemberStatus.ACTIVE)
+                .orElseThrow(() -> new CustomException(MemberErrorCode.MEMBER_NOT_FOUND));
+    }
+
+    public MemberInfoResponse getMemberInfo(Long memberId) {
+        Member member = getActiveMember(memberId);
+
+        return MemberInfoResponse.from(member);
+    }
+
     // 개발용 토큰 발급 API에서 사용
+    @Transactional
     public Member findOrCreateDeveloperMember(String email, String nickname) {
         return memberRepository
                 .findFirstByEmailAndStatusOrderByIdAsc(email, MemberStatus.ACTIVE)
-                .orElseGet(() -> {
-                    Long memberId = memberCreationService.createDeveloperMember(
-                            email,
-                            nickname
-                    );
-
-                    return getActiveMember(memberId);
-                });
+                .orElseGet(() ->
+                        memberRepository.save(
+                                Member.create(email, nickname)
+                        )
+                );
     }
 }

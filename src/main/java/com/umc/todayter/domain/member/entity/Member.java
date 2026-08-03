@@ -1,6 +1,7 @@
 package com.umc.todayter.domain.member.entity;
 
 import com.umc.todayter.domain.member.enums.MemberStatus;
+import com.umc.todayter.domain.member.enums.WithdrawReason;
 import com.umc.todayter.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -31,8 +32,9 @@ public class Member extends BaseEntity {
     @Column(name = "refresh_token_expires_at")
     private LocalDateTime refreshTokenExpiresAt;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "withdraw_reason")
-    private String withdrawReason;
+    private WithdrawReason withdrawReason;
 
     @Column(name = "withdrawn_at")
     private LocalDateTime withdrawnAt;
@@ -68,5 +70,12 @@ public class Member extends BaseEntity {
 
     public boolean isActive() {
         return status == MemberStatus.ACTIVE;
+    }
+
+    public void withdraw(WithdrawReason withdrawReason) {
+        this.status = MemberStatus.WITHDRAWN;
+        this.withdrawReason = withdrawReason;
+        this.withdrawnAt = LocalDateTime.now();
+        clearRefreshToken();
     }
 }

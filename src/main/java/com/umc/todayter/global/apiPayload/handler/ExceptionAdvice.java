@@ -9,11 +9,15 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import java.util.LinkedHashMap;
@@ -43,7 +47,57 @@ public class ExceptionAdvice extends ResponseEntityExceptionHandler {
         );
     }
 
-    // @Valid + @RequestBody DTO 검증 실패 시
+    // Query parameter and @ModelAttribute binding failures
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Object> handleMethodArgumentTypeMismatch(
+            MethodArgumentTypeMismatchException e,
+            WebRequest request
+    ) {
+        ApiResponse<Object> body = ApiResponse.onFailure(null, ErrorCode.INVALID_REQUEST);
+
+        return handleExceptionInternal(
+                e,
+                body,
+                new HttpHeaders(),
+                ErrorCode.INVALID_REQUEST.getHttpStatus(),
+                request
+        );
+    }
+
+    @ExceptionHandler(BindException.class)
+    public ResponseEntity<Object> handleBindException(
+            BindException e,
+            WebRequest request
+    ) {
+        ApiResponse<Object> body = ApiResponse.onFailure(bindingErrors(e), ErrorCode.INVALID_REQUEST);
+
+        return handleExceptionInternal(
+                e,
+                body,
+                new HttpHeaders(),
+                ErrorCode.INVALID_REQUEST.getHttpStatus(),
+                request
+        );
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleHandlerMethodValidationException(
+            HandlerMethodValidationException e,
+            HttpHeaders headers,
+            HttpStatusCode statusCode,
+            WebRequest request
+    ) {
+        ApiResponse<Object> body = ApiResponse.onFailure(null, ErrorCode.INVALID_REQUEST);
+
+        return handleExceptionInternal(
+                e,
+                body,
+                headers,
+                ErrorCode.INVALID_REQUEST.getHttpStatus(),
+                request
+        );
+    }
+
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(
             MethodArgumentNotValidException e,
@@ -62,13 +116,16 @@ public class ExceptionAdvice extends ResponseEntityExceptionHandler {
             ); // 같은 필드에 여러 에러가 있을 수 있음. ex) "nickname": "닉네임은 필수입니다., 닉네임은 1자 이상이어야 합니다."
         });
 
-        ApiResponse<Object> body = ApiResponse.onFailure(errors, ErrorCode.VALIDATION_ERROR);
+        ErrorCode errorCode = e.getParameter().hasParameterAnnotation(ModelAttribute.class)
+                ? ErrorCode.INVALID_REQUEST
+                : ErrorCode.VALIDATION_ERROR;
+        ApiResponse<Object> body = ApiResponse.onFailure(errors, errorCode);
 
         return handleExceptionInternal(
                 e,
                 body,
                 headers,
-                ErrorCode.VALIDATION_ERROR.getHttpStatus(),
+                errorCode.getHttpStatus(),
                 request
         );
     }
@@ -123,5 +180,24 @@ public class ExceptionAdvice extends ResponseEntityExceptionHandler {
                 ErrorCode.INTERNAL_SERVER_ERROR.getHttpStatus(),
                 request
         );
+    }
+
+    private Map<String, String> bindingErrors(BindException e) {
+        Map<String, String> errors = new LinkedHashMap<>();
+
+        e.getBindingResult().getFieldErrors().forEach(fieldError -> {
+            String field = fieldError.getField();
+            String message = Optional.ofNullable(fieldError.getDefaultMessage())
+                    .orElse("유효하지 않은 값입니다.");
+            errors.merge(field, message, (a, b) -> a + ", " + b);
+        });
+        e.getBindingResult().getGlobalErrors().forEach(globalError -> {
+            String field = globalError.getObjectName();
+            String message = Optional.ofNullable(globalError.getDefaultMessage())
+                    .orElse("유효하지 않은 값입니다.");
+            errors.merge(field, message, (a, b) -> a + ", " + b);
+        });
+
+        return errors;
     }
 }

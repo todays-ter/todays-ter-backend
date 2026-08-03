@@ -3,6 +3,7 @@ package com.umc.todayter.domain.onboarding.entity;
 import com.umc.todayter.domain.onboarding.dto.request.GuestSajuRequest;
 import com.umc.todayter.domain.onboarding.enums.CalendarType;
 import com.umc.todayter.domain.onboarding.enums.ConcernType;
+import com.umc.todayter.domain.onboarding.enums.Gender;
 import com.umc.todayter.domain.onboarding.enums.OnboardingStep;
 import com.umc.todayter.global.entity.BaseEntity;
 import jakarta.persistence.*;
@@ -40,6 +41,10 @@ public class Onboarding extends BaseEntity {
     private Long memberId;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "gender", length = 10)
+    private Gender gender;
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "calendar_type")
     private CalendarType calendarType;
 
@@ -72,16 +77,34 @@ public class Onboarding extends BaseEntity {
     }
 
     public void updateSaju(GuestSajuRequest request) {
-        this.calendarType = request.calendarType();
-        this.birthDate = request.birthDate();
-        this.birthTime = request.birthTime();
-        this.birthTimeUnknown = request.birthTimeUnknown();
-        this.onboardingStep = OnboardingStep.SAJU_COMPLETED;
+        this.gender = request.gender();
+        updateSaju(
+                request.calendarType(),
+                request.birthDate(),
+                request.birthTime(),
+                request.birthTimeUnknown()
+        );
+    }
+
+    public void updateSaju(
+            CalendarType calendarType,
+            LocalDate birthDate,
+            LocalTime birthTime,
+            boolean birthTimeUnknown
+    ) {
+        this.calendarType = calendarType;
+        this.birthDate = birthDate;
+        this.birthTime = birthTimeUnknown ? null : birthTime;
+        this.birthTimeUnknown = birthTimeUnknown;
+
+        if (this.onboardingStep == OnboardingStep.STARTED) {
+            this.onboardingStep = OnboardingStep.SAJU_COMPLETED;
+        }
     }
 
     // 사주 정보가 정상적으로 저장되어 있는지 확인
     public boolean hasSajuInformation() {
-        if (calendarType == null || birthDate == null) {
+        if (gender == null || calendarType == null || birthDate == null) {
             return false;
         }
 

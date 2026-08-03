@@ -9,7 +9,12 @@ import org.springframework.http.HttpStatus;
 @AllArgsConstructor
 public enum AuthErrorCode implements BaseCode {
 
-    KAKAO_AUTHORIZATION_CODE_INVALID(HttpStatus.UNAUTHORIZED, "AUTH401", "카카오 인가 코드가 유효하지 않거나 만료되었습니다."),
+    KAKAO_AUTHORIZATION_CODE_INVALID(HttpStatus.UNAUTHORIZED, "AUTH401_1", "카카오 인가 코드가 유효하지 않거나 만료되었습니다."),
+    REFRESH_TOKEN_MISSING(HttpStatus.UNAUTHORIZED, "AUTH401_2", "Refresh Token이 존재하지 않습니다."),
+    REFRESH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "AUTH401_3", "유효하지 않거나 만료된 Refresh Token입니다."),
+    REFRESH_TOKEN_MISMATCH(HttpStatus.UNAUTHORIZED, "AUTH401_4", "저장된 Refresh Token과 일치하지 않습니다."),
+
+    INVALID_ORIGIN(HttpStatus.FORBIDDEN, "AUTH403", "허용되지 않은 출처의 요청입니다."),
 
     KAKAO_TOKEN_API_FAILED(HttpStatus.BAD_GATEWAY, "AUTH502_1", "카카오 인증 서버와 통신하지 못했습니다."),
     KAKAO_USER_INFO_FAILED(HttpStatus.BAD_GATEWAY, "AUTH502_2", "카카오 사용자 정보를 조회하지 못했습니다."),

@@ -1,6 +1,6 @@
 package com.umc.todayter.global.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.umc.todayter.global.apiPayload.response.ApiResponse;
 import com.umc.todayter.global.apiPayload.response.ErrorCode;
 import com.umc.todayter.global.security.jwt.JwtAuthenticationFilter;
@@ -78,9 +78,15 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(
                                 HttpMethod.GET,
+                                "/places",
+                                "/places/editor-picks",
                                 "/places/explore-filters",
                                 "/places/*/thumbnail"
                         ).permitAll()
+                        .requestMatchers(HttpMethod.GET, "/recommendations/places/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/recommendations/places/shared/*").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/recommendations/places/*/share").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/home/header").permitAll()
 
                         // 추가
                         .requestMatchers(
@@ -89,8 +95,10 @@ public class SecurityConfig {
                                 "/actuator/health",
                                 "/api/guest-sessions/**",
                                 "/api/guest-onboarding/**",
+                                "/fortune-reports/**",
                                 "/auth/dev/**",
-                                "/auth/kakao/login"
+                                "/auth/kakao/login",
+                                "/auth/reissue"
                         ).permitAll()
 
                         .anyRequest().authenticated()
