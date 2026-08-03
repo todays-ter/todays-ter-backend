@@ -30,6 +30,7 @@ import com.umc.todayter.global.security.context.CurrentUserContext;
 import com.umc.todayter.global.security.context.CurrentUserContextResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -97,7 +98,7 @@ public class PlaceService {
         return RecommendationPlaceDetailResponse.from(place, isSaved, snapshot, contextPathUrl);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public String createRecommendationShareToken(Long placeId, String guestId) {
         Place place = getActivePlace(placeId);
         CurrentUserContext userContext = currentUserContextResolver.resolve(guestId);
