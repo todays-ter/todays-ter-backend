@@ -49,8 +49,6 @@ google:
 
 fortune-report:
   max-retries: ${FORTUNE_REPORT_MAX_RETRIES:10}
-  mock-enabled: ${FORTUNE_REPORT_MOCK_ENABLED:}
-  mock-template-report-id: ${FORTUNE_REPORT_MOCK_TEMPLATE_REPORT_ID:}
   ablecity:
     base-url: ${ABLECITY_API_BASE_URL:}
     api-key: ${ABLECITY_API_KEY:}
