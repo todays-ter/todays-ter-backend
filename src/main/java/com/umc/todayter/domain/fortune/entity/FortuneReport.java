@@ -165,6 +165,20 @@ public class FortuneReport extends BaseEntity {
         advance(FortuneReportStep.AI_REPORT_CREATED, 80);
     }
 
+    public void completeWithGeneratedResult(String manseData, String reportContent) {
+        if (manseData == null || manseData.isBlank()) {
+            throw new IllegalArgumentException("만세력 정보가 필요합니다.");
+        }
+        if (reportContent == null || reportContent.isBlank()) {
+            throw new IllegalArgumentException("리포트 내용이 필요합니다.");
+        }
+
+        startAttempt();
+        this.manseData = manseData;
+        this.reportContent = reportContent;
+        complete();
+    }
+
     public void complete() {
         status = FortuneReportStatus.COMPLETED;
         currentStep = FortuneReportStep.COMPLETED;
