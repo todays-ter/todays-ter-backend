@@ -80,7 +80,12 @@ public class EnergyRoutineService {
             throw new CustomException(FortuneReportErrorCode.REPORT_CONTENT_UNAVAILABLE);
         }
 
-        BasicReport basic = fortuneReportResultParser.parseBasic(reportContent);
+        BasicReport basic;
+        try {
+            basic = fortuneReportResultParser.parseBasic(reportContent);
+        } catch (NumberFormatException e) {
+            throw new CustomException(FortuneReportErrorCode.REPORT_CONTENT_UNAVAILABLE);
+        }
         if (basic == null) {
             throw new CustomException(FortuneReportErrorCode.REPORT_CONTENT_UNAVAILABLE);
         }

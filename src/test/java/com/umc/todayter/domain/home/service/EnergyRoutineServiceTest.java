@@ -22,6 +22,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import tools.jackson.databind.ObjectMapper;
 
 import java.lang.reflect.Constructor;
 import java.util.List;
@@ -198,6 +199,26 @@ class EnergyRoutineServiceTest {
     }
 
     @Test
+    void malformedSectionNumberThrowsReportContentUnavailable() {
+        String reportContent = """
+                ## 999999999999999999999999. 종합
+
+                ### 보완 오행
+                보완 오행: 수
+                """;
+        when(fortuneReportRepository.findFirstByGuestSessionIdAndStatusOrderByIdDesc(
+                10L, FortuneReportStatus.COMPLETED
+        )).thenReturn(Optional.of(report(100L, reportContent)));
+
+        assertError(
+                () -> serviceWithParser(new FortuneReportResultParser(new ObjectMapper()))
+                        .getEnergyRoutines(CurrentUserContext.forGuest(10L, "guest-id")),
+                FortuneReportErrorCode.REPORT_CONTENT_UNAVAILABLE
+        );
+        verifyNoInteractions(complementActionProvider);
+    }
+
+    @Test
     void invalidProviderResultThrowsReportContentUnavailable() {
         assertInvalidProviderResult(null);
         assertInvalidProviderResult(new ComplementActionGuide(null, null, List.of()));
@@ -288,9 +309,13 @@ class EnergyRoutineServiceTest {
     }
 
     private EnergyRoutineService service() {
+        return serviceWithParser(fortuneReportResultParser);
+    }
+
+    private EnergyRoutineService serviceWithParser(FortuneReportResultParser parser) {
         return new EnergyRoutineService(
                 fortuneReportRepository,
-                fortuneReportResultParser,
+                parser,
                 complementActionProvider,
                 memberRepository
         );
