@@ -80,6 +80,21 @@ class PlaceRepositoryTest {
     }
 
     @Test
+    void findAllByActiveTrue_returnsAllActivePlacesWithoutOtherFilters() {
+        placeRepository.save(place("active-editor", ThemeType.LOVE, true, true, 4.0));
+        placeRepository.save(place("active-not-editor", ThemeType.CAREER, true, false, 3.0));
+        placeRepository.save(place("inactive-editor", ThemeType.HEALTH, false, true, 5.0));
+        placeRepository.flush();
+
+        List<Place> result = placeRepository.findAllByActiveTrue();
+
+        assertThat(result)
+                .extracting(Place::getName)
+                .containsExactlyInAnyOrder("active-editor", "active-not-editor")
+                .doesNotContain("inactive-editor");
+    }
+
+    @Test
     void findByActiveTrueAndEditorPickTrue_sortsByAverageRatingDescAndIdAsc() {
         Place low = placeRepository.save(place("editor-sort-low", ThemeType.LOVE, true, true, 3.0));
         Place highFirst = placeRepository.save(place("editor-sort-high-first", ThemeType.LOVE, true, true, 5.0));

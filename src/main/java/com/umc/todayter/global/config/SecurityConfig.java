@@ -89,6 +89,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/home/header").permitAll()
                         .requestMatchers(HttpMethod.GET, "/home/today-energy").permitAll()
                         .requestMatchers(HttpMethod.GET, "/home/energy-routines").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/home/recommended-place").permitAll()
 
                         // 추가
                         .requestMatchers(

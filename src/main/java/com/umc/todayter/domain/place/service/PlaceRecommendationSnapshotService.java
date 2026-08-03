@@ -61,7 +61,7 @@ public class PlaceRecommendationSnapshotService {
                 .orElseThrow(() -> new CustomException(PlaceErrorCode.SHARED_RECOMMENDATION_NOT_FOUND));
     }
 
-    private PlaceRecommendationSnapshot getOrCreate(RecommendationMatchContext match, Place place) {
+    public PlaceRecommendationSnapshot getOrCreate(RecommendationMatchContext match, Place place) {
         LocalDate today = LocalDate.now(clock);
         String concernKey = concernKey(match.concerns());
         Optional<PlaceRecommendationSnapshot> cached = snapshotRepository

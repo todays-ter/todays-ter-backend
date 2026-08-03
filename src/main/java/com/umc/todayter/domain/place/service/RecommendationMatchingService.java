@@ -11,6 +11,7 @@ import com.umc.todayter.domain.onboarding.enums.ConcernType;
 import com.umc.todayter.domain.onboarding.repository.OnboardingRepository;
 import com.umc.todayter.domain.place.entity.Place;
 import com.umc.todayter.domain.place.dto.internal.RecommendationMatchContext;
+import com.umc.todayter.domain.place.dto.internal.RecommendationScoringContext;
 import com.umc.todayter.domain.place.enums.ElementType;
 import com.umc.todayter.domain.place.service.provider.DailyFortuneElementProvider;
 import com.umc.todayter.global.security.context.CurrentUserContext;
@@ -60,10 +61,10 @@ public class RecommendationMatchingService {
         }
 
         return findLatestCompletedReport(userContext)
-                .flatMap(report -> createContext(report, place));
+                .flatMap(report -> prepare(report).map(context -> score(context, place)));
     }
 
-    private Optional<RecommendationMatchContext> createContext(FortuneReport report, Place place) {
+    public Optional<RecommendationScoringContext> prepare(FortuneReport report) {
         BasicReport basicReport = resultParser.parseBasic(report.getReportContent());
         ElementType neededElement = toElementType(basicReport.complementElement());
         if (neededElement == null) {
@@ -75,16 +76,26 @@ public class RecommendationMatchingService {
                 .orElse(List.of());
 
         ElementType dailyElement = dailyElementProvider.todayElement();
-        return Optional.of(new RecommendationMatchContext(
+        return Optional.of(new RecommendationScoringContext(
                 report.getId(),
                 basicReport,
                 neededElement,
                 dailyElement,
-                List.copyOf(concerns),
-                elementCompatibilityScore(neededElement, place.getElementType()),
-                concernCompatibilityScore(concerns, place),
-                dailyCompatibilityScore(dailyElement, place.getElementType())
+                concerns == null ? List.of() : List.copyOf(concerns)
         ));
+    }
+
+    public RecommendationMatchContext score(RecommendationScoringContext context, Place place) {
+        return new RecommendationMatchContext(
+                context.reportId(),
+                context.basicReport(),
+                context.neededElement(),
+                context.dailyElement(),
+                context.concerns(),
+                elementCompatibilityScore(context.neededElement(), place.getElementType()),
+                concernCompatibilityScore(context.concerns(), place),
+                dailyCompatibilityScore(context.dailyElement(), place.getElementType())
+        );
     }
 
     private Optional<FortuneReport> findLatestCompletedReport(CurrentUserContext userContext) {

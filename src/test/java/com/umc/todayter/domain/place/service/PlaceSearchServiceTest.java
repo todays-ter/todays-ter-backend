@@ -33,7 +33,7 @@ class PlaceSearchServiceTest {
 
     @Test
     void searchPlaces_returnsAppliedFiltersAndPlaceCards() {
-        PlaceSearchService placeSearchService = new PlaceSearchService(placeRepository);
+        PlaceSearchService placeSearchService = service();
         PlaceSearchRequest request = request();
         request.setKeyword(" palace ");
         request.setRegionCode(RegionCode.SEOUL);
@@ -70,7 +70,7 @@ class PlaceSearchServiceTest {
 
     @Test
     void searchPlaces_usesFixedPageSort() {
-        PlaceSearchService placeSearchService = new PlaceSearchService(placeRepository);
+        PlaceSearchService placeSearchService = service();
         PlaceSearchRequest request = request();
         request.setPage(1);
         request.setSize(10);
@@ -90,7 +90,7 @@ class PlaceSearchServiceTest {
 
     @Test
     void searchPlaces_returnsNullThumbnailWhenGooglePlaceIdIsNullOrBlank() {
-        PlaceSearchService placeSearchService = new PlaceSearchService(placeRepository);
+        PlaceSearchService placeSearchService = service();
         Place nullGooglePlace = place(1L, "null-google", ElementType.FIRE, ThemeType.LOVE, null);
         Place blankGooglePlace = place(2L, "blank-google", ElementType.WOOD, ThemeType.HEALTH, " ");
         when(placeRepository.findAll(any(Specification.class), any(Pageable.class)))
@@ -105,7 +105,7 @@ class PlaceSearchServiceTest {
 
     @Test
     void searchPlaces_calculatesRoundedDistanceWhenCoordinatesExist() {
-        PlaceSearchService placeSearchService = new PlaceSearchService(placeRepository);
+        PlaceSearchService placeSearchService = service();
         Place place = place(1L, "place", ElementType.FIRE, ThemeType.LOVE, "google-place-id");
         PlaceSearchRequest request = request();
         request.setLatitude(37.5665);
@@ -120,7 +120,7 @@ class PlaceSearchServiceTest {
 
     @Test
     void searchPlaces_returnsEmptyPage() {
-        PlaceSearchService placeSearchService = new PlaceSearchService(placeRepository);
+        PlaceSearchService placeSearchService = service();
         when(placeRepository.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
 
@@ -134,6 +134,14 @@ class PlaceSearchServiceTest {
 
     private PlaceSearchRequest request() {
         return new PlaceSearchRequest();
+    }
+
+    private PlaceSearchService service() {
+        return new PlaceSearchService(
+                placeRepository,
+                new PlaceThumbnailUrlFactory(),
+                new PlaceDistanceCalculator()
+        );
     }
 
     private Place place(Long id, String name, ElementType elementType, ThemeType themeType, String googlePlaceId) {
