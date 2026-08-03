@@ -1,8 +1,12 @@
 package com.umc.todayter.domain.home.controller;
 
 import com.umc.todayter.domain.home.dto.response.HomeHeaderResponse;
+import com.umc.todayter.domain.home.dto.response.EnergyRoutineElementResponse;
+import com.umc.todayter.domain.home.dto.response.EnergyRoutineItemResponse;
+import com.umc.todayter.domain.home.dto.response.EnergyRoutinesResponse;
 import com.umc.todayter.domain.home.dto.response.TodayEnergyElementResponse;
 import com.umc.todayter.domain.home.dto.response.TodayEnergyResponse;
+import com.umc.todayter.domain.home.service.EnergyRoutineService;
 import com.umc.todayter.domain.home.service.HomeService;
 import com.umc.todayter.domain.home.service.TodayEnergyService;
 import com.umc.todayter.domain.fortune.enums.FiveElement;
@@ -76,6 +80,9 @@ class HomeControllerTest {
 
     @MockitoBean
     private TodayEnergyService todayEnergyService;
+
+    @MockitoBean
+    private EnergyRoutineService energyRoutineService;
 
     @MockitoBean
     private PlaceService placeService;
@@ -238,6 +245,78 @@ class HomeControllerTest {
     }
 
     @Test
+    void getEnergyRoutinesWithMemberContextReturnsOk() throws Exception {
+        CurrentUserContext context = CurrentUserContext.forMember(1L);
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(currentUserContextResolver.resolve(null)).thenReturn(context);
+        when(energyRoutineService.getEnergyRoutines(context)).thenReturn(new EnergyRoutinesResponse(
+                EnergyRoutineElementResponse.from(FiveElement.WATER),
+                List.of(
+                        new EnergyRoutineItemResponse(1, "물가", "강이나 하천을 따라 천천히 걸어봐요"),
+                        new EnergyRoutineItemResponse(2, "고요", "도서관에서 시간을 보내봐요"),
+                        new EnergyRoutineItemResponse(3, "사유", "떠오르는 감정을 짧게 적어봐요")
+                )
+        ));
+
+        mockMvc.perform(get("/home/energy-routines")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isSuccess").value(true))
+                .andExpect(jsonPath("$.code").value("COMMON200"))
+                .andExpect(jsonPath("$.result.element.code").value("WATER"))
+                .andExpect(jsonPath("$.result.element.name").value(FiveElement.WATER.getLabel()))
+                .andExpect(jsonPath("$.result.routines[0].order").value(1))
+                .andExpect(jsonPath("$.result.routines[0].type").value("물가"))
+                .andExpect(jsonPath("$.result.routines[0].text").value("강이나 하천을 따라 천천히 걸어봐요"))
+                .andExpect(jsonPath("$.result.routines[1].order").value(2))
+                .andExpect(jsonPath("$.result.routines[1].type").value("고요"))
+                .andExpect(jsonPath("$.result.routines[1].text").value("도서관에서 시간을 보내봐요"))
+                .andExpect(jsonPath("$.result.routines[2].order").value(3))
+                .andExpect(jsonPath("$.result.routines[2].type").value("사유"))
+                .andExpect(jsonPath("$.result.routines[2].text").value("떠오르는 감정을 짧게 적어봐요"))
+                .andExpect(jsonPath("$.result.date").doesNotExist())
+                .andExpect(jsonPath("$.result.reportId").doesNotExist())
+                .andExpect(jsonPath("$.result.memberId").doesNotExist())
+                .andExpect(jsonPath("$.result.guestSessionId").doesNotExist())
+                .andExpect(jsonPath("$.result.guestId").doesNotExist())
+                .andExpect(jsonPath("$.result.onboardingId").doesNotExist())
+                .andExpect(jsonPath("$.result.status").doesNotExist())
+                .andExpect(jsonPath("$.result.currentStep").doesNotExist())
+                .andExpect(jsonPath("$.result.progress").doesNotExist())
+                .andExpect(jsonPath("$.result.reportContent").doesNotExist())
+                .andExpect(jsonPath("$.result.retryCount").doesNotExist())
+                .andExpect(jsonPath("$.result.completedAt").doesNotExist())
+                .andExpect(jsonPath("$.result.primaryElements").doesNotExist())
+                .andExpect(jsonPath("$.result.complementElement").doesNotExist());
+
+        verify(currentUserContextResolver).resolve(null);
+        verify(energyRoutineService).getEnergyRoutines(context);
+    }
+
+    @Test
+    void getEnergyRoutinesWithGuestContextReturnsOkAndPassesCookie() throws Exception {
+        CurrentUserContext context = CurrentUserContext.forGuest(10L, "guest-id");
+        when(currentUserContextResolver.resolve("guest-id")).thenReturn(context);
+        when(energyRoutineService.getEnergyRoutines(context)).thenReturn(new EnergyRoutinesResponse(
+                EnergyRoutineElementResponse.from(FiveElement.FIRE),
+                List.of(new EnergyRoutineItemResponse(1, "햇빛", "text"))
+        ));
+
+        mockMvc.perform(get("/home/energy-routines")
+                        .cookie(new Cookie(GuestCookieUtil.COOKIE_NAME, "guest-id")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.element.code").value("FIRE"))
+                .andExpect(jsonPath("$.result.element.name").value(FiveElement.FIRE.getLabel()))
+                .andExpect(jsonPath("$.result.routines[0].order").value(1))
+                .andExpect(jsonPath("$.result.routines[0].type").value("햇빛"))
+                .andExpect(jsonPath("$.result.routines[0].text").value("text"));
+
+        verify(currentUserContextResolver).resolve("guest-id");
+        verify(energyRoutineService).getEnergyRoutines(context);
+    }
+
+    @Test
     void resolverUnauthorizedReturnsUnauthorized() throws Exception {
         when(currentUserContextResolver.resolve(null)).thenThrow(new CustomException(ErrorCode.UNAUTHORIZED));
 
@@ -254,6 +333,18 @@ class HomeControllerTest {
         when(currentUserContextResolver.resolve(null)).thenThrow(new CustomException(ErrorCode.UNAUTHORIZED));
 
         mockMvc.perform(get("/home/today-energy"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.isSuccess").value(false))
+                .andExpect(jsonPath("$.code").value("COMMON401"));
+
+        verify(currentUserContextResolver).resolve(null);
+    }
+
+    @Test
+    void energyRoutinesResolverUnauthorizedReturnsUnauthorized() throws Exception {
+        when(currentUserContextResolver.resolve(null)).thenThrow(new CustomException(ErrorCode.UNAUTHORIZED));
+
+        mockMvc.perform(get("/home/energy-routines"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.isSuccess").value(false))
                 .andExpect(jsonPath("$.code").value("COMMON401"));
@@ -288,6 +379,32 @@ class HomeControllerTest {
     }
 
     @Test
+    void energyRoutinesReportNotFoundReturnsNotFound() throws Exception {
+        CurrentUserContext context = CurrentUserContext.forGuest(10L, "guest-id");
+        when(currentUserContextResolver.resolve("guest-id")).thenReturn(context);
+        when(energyRoutineService.getEnergyRoutines(context))
+                .thenThrow(new CustomException(FortuneReportErrorCode.REPORT_NOT_FOUND));
+
+        mockMvc.perform(get("/home/energy-routines")
+                        .cookie(new Cookie(GuestCookieUtil.COOKIE_NAME, "guest-id")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("FORTUNE404_1"));
+    }
+
+    @Test
+    void energyRoutinesReportContentUnavailableReturnsInternalServerError() throws Exception {
+        CurrentUserContext context = CurrentUserContext.forGuest(10L, "guest-id");
+        when(currentUserContextResolver.resolve("guest-id")).thenReturn(context);
+        when(energyRoutineService.getEnergyRoutines(context))
+                .thenThrow(new CustomException(FortuneReportErrorCode.REPORT_CONTENT_UNAVAILABLE));
+
+        mockMvc.perform(get("/home/energy-routines")
+                        .cookie(new Cookie(GuestCookieUtil.COOKIE_NAME, "guest-id")))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.code").value("FORTUNE500_1"));
+    }
+
+    @Test
     void invalidGuestIdReturnsUnauthorized() throws Exception {
         when(currentUserContextResolver.resolve("wrong-guest-id"))
                 .thenThrow(new CustomException(ErrorCode.UNAUTHORIZED));
@@ -311,10 +428,6 @@ class HomeControllerTest {
 
     @Test
     void unimplementedHomePathsAreNotPublic() throws Exception {
-        mockMvc.perform(get("/home/energy-routines"))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("COMMON401"));
-
         mockMvc.perform(get("/home/recommended-place"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("COMMON401"));
