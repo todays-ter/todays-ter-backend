@@ -64,13 +64,12 @@ public class OpenAiFortuneReportClient {
             );
             throw new FortuneReportGenerationException(
                     "OPENAI_API_FAILED",
-                    "AI 리포트를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-                    e
+                    "AI 리포트를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요."
             );
         } catch (RestClientException e) {
             log.warn("OpenAI API 통신 실패. exception={}", e.getClass().getSimpleName());
             throw new FortuneReportGenerationException(
-                    "OPENAI_API_FAILED", "AI 리포트를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.", e
+                    "OPENAI_API_FAILED", "AI 리포트를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요."
             );
         }
     }
