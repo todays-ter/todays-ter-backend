@@ -29,6 +29,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.IntStream;
 
 @Service
 @RequiredArgsConstructor
@@ -122,7 +123,7 @@ public class RecommendedPlaceService {
                         .thenComparing(candidate -> candidate.place().getId()))
                 .toList();
 
-        return java.util.stream.IntStream.range(0, sorted.size())
+        return IntStream.range(0, sorted.size())
                 .mapToObj(index -> sorted.get(index).withRankOrder(index + 1))
                 .toList();
     }

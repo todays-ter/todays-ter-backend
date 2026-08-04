@@ -112,6 +112,8 @@ public class HomeController {
     @Operation(
             summary = "오늘 가장 잘 맞는 터 조회",
             description = """
+                    Bearer JWT 또는 guest_id 쿠키가 필요합니다.
+                    둘 다 있으면 JWT 회원을 우선합니다.
                     회원 또는 비회원의 최신 완료 사주 리포트를 기준으로
                     활성 장소의 추천 점수를 계산합니다.
                     비회원은 상위 1개, 회원은 상위 3개를 반환합니다.

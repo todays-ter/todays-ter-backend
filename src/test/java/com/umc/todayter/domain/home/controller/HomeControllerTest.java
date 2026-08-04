@@ -39,6 +39,7 @@ import com.umc.todayter.global.util.GuestCookieUtil;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration;
 import org.springframework.boot.security.autoconfigure.web.servlet.SecurityFilterAutoConfiguration;
@@ -53,9 +54,11 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -421,6 +424,12 @@ class HomeControllerTest {
                 .andExpect(jsonPath("$.result.recommendations[0].reportContent").doesNotExist())
                 .andExpect(jsonPath("$.result.recommendations[0].primaryElements").doesNotExist())
                 .andExpect(jsonPath("$.result.recommendations[0].complementElement").doesNotExist());
+
+        ArgumentCaptor<HomeRecommendedPlaceQuery> queryCaptor =
+                ArgumentCaptor.forClass(HomeRecommendedPlaceQuery.class);
+        verify(recommendedPlaceService).getRecommendedPlaces(eq(context), queryCaptor.capture(), anyString());
+        assertThat(queryCaptor.getValue().latitude()).isEqualTo(37.5665);
+        assertThat(queryCaptor.getValue().longitude()).isEqualTo(126.9780);
     }
 
     @Test
@@ -457,6 +466,8 @@ class HomeControllerTest {
                         .param("latitude", "37.5665"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("HOME400_1"));
+
+        verify(currentUserContextResolver, never()).resolve(any());
     }
 
     @Test
