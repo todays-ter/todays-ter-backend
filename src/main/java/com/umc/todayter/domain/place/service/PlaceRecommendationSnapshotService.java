@@ -15,6 +15,7 @@ import com.umc.todayter.global.security.context.CurrentUserContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDate;
@@ -35,11 +36,13 @@ public class PlaceRecommendationSnapshotService {
     private final OpenAiFortuneReportClient openAiClient;
     private final Clock clock;
 
+    @Transactional
     public Optional<PlaceRecommendationSnapshot> getOrCreate(CurrentUserContext userContext, Place place) {
         return matchingService.resolve(userContext, place)
                 .map(match -> getOrCreate(match, place));
     }
 
+    @Transactional
     public PlaceRecommendationSnapshot getOrCreateRequired(CurrentUserContext userContext, Place place) {
         return getOrCreate(userContext, place)
                 .orElseThrow(() -> new CustomException(PlaceErrorCode.PERSONALIZED_RECOMMENDATION_UNAVAILABLE));
@@ -65,8 +68,8 @@ public class PlaceRecommendationSnapshotService {
         LocalDate today = LocalDate.now(clock);
         String concernKey = concernKey(match.concerns());
         Optional<PlaceRecommendationSnapshot> cached = snapshotRepository
-                .findByFortuneReportIdAndPlaceIdAndRecommendationDateAndConcernKey(
-                        match.reportId(), place.getId(), today, concernKey
+                .findFirstByFortuneReportIdAndPlaceIdAndConcernKeyOrderByIdDesc(
+                        match.reportId(), place.getId(), concernKey
                 );
         if (cached.isPresent()) {
             return cached.get();
@@ -90,8 +93,8 @@ public class PlaceRecommendationSnapshotService {
             return snapshotRepository.save(snapshot);
         } catch (DataIntegrityViolationException e) {
             return snapshotRepository
-                    .findByFortuneReportIdAndPlaceIdAndRecommendationDateAndConcernKey(
-                            match.reportId(), place.getId(), today, concernKey
+                    .findFirstByFortuneReportIdAndPlaceIdAndConcernKeyOrderByIdDesc(
+                            match.reportId(), place.getId(), concernKey
                     )
                     .orElseThrow(() -> e);
         }

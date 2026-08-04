@@ -11,7 +11,7 @@ public record RecommendationPlaceDetailResponse(
         Long placeId,
         String placeName,
         String imageUrl,
-        String primaryElement,
+        PlaceSearchTypeResponse primaryElement,
         List<String> topCategories,
         Integer matchingScore,
         List<String> matchingPoints,
@@ -30,7 +30,10 @@ public record RecommendationPlaceDetailResponse(
                 place.getId(),
                 place.getName(),
                 thumbnailUrl(place, contextPathUrl),
-                place.getElementType().getDisplayName(),
+                new PlaceSearchTypeResponse(
+                        place.getElementType().name(),
+                        place.getElementType().getDisplayName()
+                ),
                 PlaceListItemResponse.from(place, null).categories(),
                 snapshot == null ? null : snapshot.getMatchingScore(),
                 snapshot == null ? List.of() : snapshot.getMatchingPoints(),

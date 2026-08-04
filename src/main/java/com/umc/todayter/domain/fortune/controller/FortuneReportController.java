@@ -4,6 +4,7 @@ import com.umc.todayter.domain.fortune.dto.response.FortuneReportCreateResponse;
 import com.umc.todayter.domain.fortune.dto.response.FortuneReportStatusResponse;
 import com.umc.todayter.domain.fortune.dto.response.FortuneReportDetailResponse;
 import com.umc.todayter.domain.fortune.dto.response.FortuneReportSummaryResponse;
+import com.umc.todayter.domain.fortune.dto.response.SharedFortuneReportDetailResponse;
 import com.umc.todayter.domain.fortune.service.FortuneReportService;
 import com.umc.todayter.global.apiPayload.response.ApiResponse;
 import com.umc.todayter.global.apiPayload.response.SuccessCode;
@@ -95,11 +96,11 @@ public class FortuneReportController {
     @Operation(summary = "공유 리포트 카테고리 조회", description = "공유 토큰으로 연애, 건강 등 모든 상세 카테고리를 공개 조회합니다.")
     @SecurityRequirements
     @GetMapping("/shared/{shareToken}/details")
-    public ResponseEntity<ApiResponse<FortuneReportDetailResponse>> getSharedDetail(
+    public ResponseEntity<ApiResponse<SharedFortuneReportDetailResponse>> getSharedDetail(
             @PathVariable String shareToken,
             @RequestParam String category
     ) {
-        FortuneReportDetailResponse result = fortuneReportService.getSharedDetail(shareToken, category);
+        SharedFortuneReportDetailResponse result = fortuneReportService.getSharedDetail(shareToken, category);
         return ResponseEntity.ok(ApiResponse.onSuccess(result, SuccessCode.OK));
     }
 

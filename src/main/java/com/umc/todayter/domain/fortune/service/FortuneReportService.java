@@ -7,6 +7,7 @@ import com.umc.todayter.domain.fortune.dto.response.FortuneReportCreateResponse;
 import com.umc.todayter.domain.fortune.dto.response.FortuneReportStatusResponse;
 import com.umc.todayter.domain.fortune.dto.response.FortuneReportDetailResponse;
 import com.umc.todayter.domain.fortune.dto.response.FortuneReportSummaryResponse;
+import com.umc.todayter.domain.fortune.dto.response.SharedFortuneReportDetailResponse;
 import com.umc.todayter.domain.fortune.entity.FortuneReport;
 import com.umc.todayter.domain.fortune.enums.FortuneReportStatus;
 import com.umc.todayter.domain.fortune.enums.FortuneReportCategory;
@@ -197,12 +198,17 @@ public class FortuneReportService {
         );
     }
 
-    public FortuneReportDetailResponse getSharedDetail(String shareToken, String categoryValue) {
+    public SharedFortuneReportDetailResponse getSharedDetail(String shareToken, String categoryValue) {
         FortuneReportCategory category = FortuneReportCategory.from(categoryValue);
         if (category == null) {
             throw new CustomException(FortuneReportErrorCode.INVALID_REPORT_CATEGORY);
         }
-        return toDetailResponse(getCompletedSharedReport(shareToken), category);
+        FortuneReport report = getCompletedSharedReport(shareToken);
+        FortuneReportDetailResponse response = toDetailResponse(report, category);
+        String sharerNickname = report.getMemberId() == null
+                ? null
+                : memberService.getActiveMember(report.getMemberId()).getNickname();
+        return SharedFortuneReportDetailResponse.from(response, sharerNickname);
     }
 
     private FortuneReport getCompletedSharedReport(String shareToken) {
