@@ -25,4 +25,17 @@ public class GuestCookieUtil {
 
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
+
+    public void clearGuestCookie(HttpServletResponse response) {
+        ResponseCookie cookie = ResponseCookie
+                .from(COOKIE_NAME, "")
+                .httpOnly(true)
+                .secure(false)
+                .sameSite("Lax")
+                .path("/")
+                .maxAge(Duration.ZERO)
+                .build();
+
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    }
 }
