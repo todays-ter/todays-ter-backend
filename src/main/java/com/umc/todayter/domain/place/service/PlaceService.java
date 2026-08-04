@@ -4,11 +4,13 @@ import com.umc.todayter.domain.member.entity.Member;
 import com.umc.todayter.domain.member.exception.MemberErrorCode;
 import com.umc.todayter.domain.member.repository.MemberRepository;
 import com.umc.todayter.domain.member.enums.MemberStatus;
+import com.umc.todayter.domain.fortune.repository.FortuneReportRepository;
 import com.umc.todayter.domain.place.dto.response.ElementFilterResponse;
 import com.umc.todayter.domain.place.dto.response.ExploreFiltersResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceListItemResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceListResponse;
 import com.umc.todayter.domain.place.dto.response.RecommendationPlaceDetailResponse;
+import com.umc.todayter.domain.place.dto.response.SharedRecommendationPlaceDetailResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceBookmarkResponse;
 import com.umc.todayter.domain.place.dto.response.RegionFilterResponse;
 import com.umc.todayter.domain.place.dto.response.ThemeFilterResponse;
@@ -55,6 +57,7 @@ public class PlaceService {
     private final SavedPlaceRepository savedPlaceRepository;
     private final VisitRecordRepository visitRecordRepository;
     private final MemberRepository memberRepository;
+    private final FortuneReportRepository fortuneReportRepository;
     private final PlaceRecommendationSnapshotService recommendationSnapshotService;
     private final CurrentUserContextResolver currentUserContextResolver;
 
@@ -107,13 +110,21 @@ public class PlaceService {
         return recommendationSnapshotService.enableSharing(snapshot).getShareToken();
     }
 
-    public RecommendationPlaceDetailResponse getSharedRecommendedPlaceDetail(
+    public SharedRecommendationPlaceDetailResponse getSharedRecommendedPlaceDetail(
             String shareToken,
             String contextPathUrl
     ) {
         PlaceRecommendationSnapshot snapshot = recommendationSnapshotService.getShared(shareToken);
         Place place = getActivePlace(snapshot.getPlaceId());
-        return RecommendationPlaceDetailResponse.from(place, false, snapshot, contextPathUrl);
+        String sharerNickname = fortuneReportRepository.findById(snapshot.getFortuneReportId())
+                .filter(report -> report.getMemberId() != null)
+                .flatMap(report -> memberRepository.findByIdAndStatus(report.getMemberId(), MemberStatus.ACTIVE))
+                .map(Member::getNickname)
+                .orElse(null);
+        RecommendationPlaceDetailResponse detail = RecommendationPlaceDetailResponse.from(
+                place, false, snapshot, contextPathUrl
+        );
+        return SharedRecommendationPlaceDetailResponse.from(detail, sharerNickname);
     }
 
     private CurrentUserContext resolveOptionalUserContext(Long memberId, String guestId) {

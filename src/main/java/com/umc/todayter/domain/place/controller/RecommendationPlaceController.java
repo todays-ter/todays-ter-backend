@@ -1,6 +1,7 @@
 package com.umc.todayter.domain.place.controller;
 
 import com.umc.todayter.domain.place.dto.response.RecommendationPlaceDetailResponse;
+import com.umc.todayter.domain.place.dto.response.SharedRecommendationPlaceDetailResponse;
 import com.umc.todayter.domain.place.dto.request.PlaceBookmarkRequest;
 import com.umc.todayter.domain.place.dto.response.PlaceBookmarkResponse;
 import com.umc.todayter.domain.place.service.PlaceService;
@@ -64,11 +65,11 @@ public class RecommendationPlaceController {
     @Operation(summary = "공유된 추천 장소 조회", description = "공유자의 맞춤 점수와 추천 문구 스냅샷을 조회합니다.")
     @SecurityRequirements
     @GetMapping("/shared/{shareToken}")
-    public ResponseEntity<ApiResponse<RecommendationPlaceDetailResponse>> getSharedRecommendation(
+    public ResponseEntity<ApiResponse<SharedRecommendationPlaceDetailResponse>> getSharedRecommendation(
             @PathVariable String shareToken
     ) {
         String contextPathUrl = ServletUriComponentsBuilder.fromCurrentContextPath().toUriString();
-        RecommendationPlaceDetailResponse result = placeService.getSharedRecommendedPlaceDetail(
+        SharedRecommendationPlaceDetailResponse result = placeService.getSharedRecommendedPlaceDetail(
                 shareToken, contextPathUrl
         );
         return ResponseEntity.ok(ApiResponse.onSuccess(result, SuccessCode.OK));

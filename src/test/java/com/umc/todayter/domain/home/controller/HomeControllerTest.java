@@ -1,16 +1,23 @@
 package com.umc.todayter.domain.home.controller;
 
+import com.umc.todayter.domain.home.dto.request.HomeRecommendedPlaceQuery;
 import com.umc.todayter.domain.home.dto.response.HomeHeaderResponse;
 import com.umc.todayter.domain.home.dto.response.EnergyRoutineElementResponse;
 import com.umc.todayter.domain.home.dto.response.EnergyRoutineItemResponse;
 import com.umc.todayter.domain.home.dto.response.EnergyRoutinesResponse;
+import com.umc.todayter.domain.home.dto.response.HomeLoginPromptResponse;
+import com.umc.todayter.domain.home.dto.response.HomeRecommendedPlaceItemResponse;
+import com.umc.todayter.domain.home.dto.response.HomeRecommendedPlacesResponse;
 import com.umc.todayter.domain.home.dto.response.TodayEnergyElementResponse;
 import com.umc.todayter.domain.home.dto.response.TodayEnergyResponse;
+import com.umc.todayter.domain.home.exception.HomeErrorCode;
 import com.umc.todayter.domain.home.service.EnergyRoutineService;
 import com.umc.todayter.domain.home.service.HomeService;
+import com.umc.todayter.domain.home.service.RecommendedPlaceService;
 import com.umc.todayter.domain.home.service.TodayEnergyService;
 import com.umc.todayter.domain.fortune.enums.FiveElement;
 import com.umc.todayter.domain.fortune.exception.code.FortuneReportErrorCode;
+import com.umc.todayter.domain.place.enums.ElementType;
 import com.umc.todayter.domain.place.controller.PlaceController;
 import com.umc.todayter.domain.place.dto.response.EditorPickResponse;
 import com.umc.todayter.domain.place.dto.response.ExploreFiltersResponse;
@@ -32,6 +39,7 @@ import com.umc.todayter.global.util.GuestCookieUtil;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration;
 import org.springframework.boot.security.autoconfigure.web.servlet.SecurityFilterAutoConfiguration;
@@ -46,9 +54,11 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -83,6 +93,9 @@ class HomeControllerTest {
 
     @MockitoBean
     private EnergyRoutineService energyRoutineService;
+
+    @MockitoBean
+    private RecommendedPlaceService recommendedPlaceService;
 
     @MockitoBean
     private PlaceService placeService;
@@ -353,6 +366,124 @@ class HomeControllerTest {
     }
 
     @Test
+    void getRecommendedPlaceWithMemberContextReturnsOk() throws Exception {
+        CurrentUserContext context = CurrentUserContext.forMember(1L);
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(currentUserContextResolver.resolve(null)).thenReturn(context);
+        when(recommendedPlaceService.getRecommendedPlaces(eq(context), any(HomeRecommendedPlaceQuery.class), anyString()))
+                .thenReturn(new HomeRecommendedPlacesResponse(
+                        CurrentUserType.MEMBER,
+                        false,
+                        1,
+                        3,
+                        List.of(new HomeRecommendedPlaceItemResponse(
+                                25L,
+                                1,
+                                "창경궁",
+                                "http://localhost/places/25/thumbnail",
+                                ElementType.EARTH,
+                                95,
+                                "reason",
+                                3.5,
+                                4.7
+                        )),
+                        null
+                ));
+
+        mockMvc.perform(get("/home/recommended-place")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .param("latitude", "37.5665")
+                        .param("longitude", "126.9780"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("COMMON200"))
+                .andExpect(jsonPath("$.result.userType").value("MEMBER"))
+                .andExpect(jsonPath("$.result.isLimited").value(false))
+                .andExpect(jsonPath("$.result.visibleCount").value(1))
+                .andExpect(jsonPath("$.result.totalCount").value(3))
+                .andExpect(jsonPath("$.result.recommendations[0].placeId").value(25))
+                .andExpect(jsonPath("$.result.recommendations[0].rankOrder").value(1))
+                .andExpect(jsonPath("$.result.recommendations[0].placeName").value("창경궁"))
+                .andExpect(jsonPath("$.result.recommendations[0].thumbnailUrl").value("http://localhost/places/25/thumbnail"))
+                .andExpect(jsonPath("$.result.recommendations[0].placeElement").value("EARTH"))
+                .andExpect(jsonPath("$.result.recommendations[0].matchPercentage").value(95))
+                .andExpect(jsonPath("$.result.recommendations[0].recommendationReason").value("reason"))
+                .andExpect(jsonPath("$.result.recommendations[0].distanceKm").value(3.5))
+                .andExpect(jsonPath("$.result.recommendations[0].averageRating").value(4.7))
+                .andExpect(jsonPath("$.result.loginPrompt").doesNotExist())
+                .andExpect(jsonPath("$.result.recommendations[0].recommendationId").doesNotExist())
+                .andExpect(jsonPath("$.result.recommendations[0].reportId").doesNotExist())
+                .andExpect(jsonPath("$.result.recommendations[0].memberId").doesNotExist())
+                .andExpect(jsonPath("$.result.recommendations[0].guestSessionId").doesNotExist())
+                .andExpect(jsonPath("$.result.recommendations[0].guestId").doesNotExist())
+                .andExpect(jsonPath("$.result.recommendations[0].onboardingId").doesNotExist())
+                .andExpect(jsonPath("$.result.recommendations[0].isGuestLocked").doesNotExist())
+                .andExpect(jsonPath("$.result.recommendations[0].actionSuggestion").doesNotExist())
+                .andExpect(jsonPath("$.result.recommendations[0].shareToken").doesNotExist())
+                .andExpect(jsonPath("$.result.recommendations[0].snapshotId").doesNotExist())
+                .andExpect(jsonPath("$.result.recommendations[0].reportContent").doesNotExist())
+                .andExpect(jsonPath("$.result.recommendations[0].primaryElements").doesNotExist())
+                .andExpect(jsonPath("$.result.recommendations[0].complementElement").doesNotExist());
+
+        ArgumentCaptor<HomeRecommendedPlaceQuery> queryCaptor =
+                ArgumentCaptor.forClass(HomeRecommendedPlaceQuery.class);
+        verify(recommendedPlaceService).getRecommendedPlaces(eq(context), queryCaptor.capture(), anyString());
+        assertThat(queryCaptor.getValue().latitude()).isEqualTo(37.5665);
+        assertThat(queryCaptor.getValue().longitude()).isEqualTo(126.9780);
+    }
+
+    @Test
+    void getRecommendedPlaceWithGuestContextReturnsPrompt() throws Exception {
+        CurrentUserContext context = CurrentUserContext.forGuest(10L, "guest-id");
+        when(currentUserContextResolver.resolve("guest-id")).thenReturn(context);
+        when(recommendedPlaceService.getRecommendedPlaces(eq(context), any(HomeRecommendedPlaceQuery.class), anyString()))
+                .thenReturn(new HomeRecommendedPlacesResponse(
+                        CurrentUserType.GUEST,
+                        true,
+                        0,
+                        0,
+                        List.of(),
+                        HomeLoginPromptResponse.guest()
+                ));
+
+        mockMvc.perform(get("/home/recommended-place")
+                        .cookie(new Cookie(GuestCookieUtil.COOKIE_NAME, "guest-id")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.userType").value("GUEST"))
+                .andExpect(jsonPath("$.result.isLimited").value(true))
+                .andExpect(jsonPath("$.result.visibleCount").value(0))
+                .andExpect(jsonPath("$.result.totalCount").value(0))
+                .andExpect(jsonPath("$.result.recommendations").isEmpty())
+                .andExpect(jsonPath("$.result.loginPrompt.title").value("로그인 후 더 많은 터를 탐색해보세요"))
+                .andExpect(jsonPath("$.result.loginPrompt.buttonText").value("로그인/회원가입 하러가기"));
+
+        verify(currentUserContextResolver).resolve("guest-id");
+    }
+
+    @Test
+    void recommendedPlaceInvalidCoordinateReturnsHome400_1BeforeResolvingUser() throws Exception {
+        mockMvc.perform(get("/home/recommended-place")
+                        .param("latitude", "37.5665"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("HOME400_1"));
+
+        verify(currentUserContextResolver, never()).resolve(any());
+    }
+
+    @Test
+    void recommendedPlaceErrorsUseHomeCodes() throws Exception {
+        CurrentUserContext context = CurrentUserContext.forGuest(10L, "guest-id");
+        when(currentUserContextResolver.resolve("guest-id")).thenReturn(context);
+        when(recommendedPlaceService.getRecommendedPlaces(eq(context), any(HomeRecommendedPlaceQuery.class), anyString()))
+                .thenThrow(new CustomException(HomeErrorCode.FORTUNE_REPORT_PROCESSING));
+
+        mockMvc.perform(get("/home/recommended-place")
+                        .cookie(new Cookie(GuestCookieUtil.COOKIE_NAME, "guest-id")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("HOME409_1"));
+    }
+
+    @Test
     void todayEnergyReportNotFoundReturnsNotFound() throws Exception {
         CurrentUserContext context = CurrentUserContext.forGuest(10L, "guest-id");
         when(currentUserContextResolver.resolve("guest-id")).thenReturn(context);
@@ -427,7 +558,9 @@ class HomeControllerTest {
     }
 
     @Test
-    void unimplementedHomePathsAreNotPublic() throws Exception {
+    void recommendedPlaceIsPublicButRequiresUserContext() throws Exception {
+        when(currentUserContextResolver.resolve(null)).thenThrow(new CustomException(ErrorCode.UNAUTHORIZED));
+
         mockMvc.perform(get("/home/recommended-place"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("COMMON401"));

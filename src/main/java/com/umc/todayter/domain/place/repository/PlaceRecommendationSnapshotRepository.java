@@ -2,17 +2,19 @@ package com.umc.todayter.domain.place.repository;
 
 import com.umc.todayter.domain.place.entity.PlaceRecommendationSnapshot;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 
-import java.time.LocalDate;
+import jakarta.persistence.LockModeType;
+
 import java.util.Optional;
 
 public interface PlaceRecommendationSnapshotRepository
         extends JpaRepository<PlaceRecommendationSnapshot, Long> {
 
-    Optional<PlaceRecommendationSnapshot> findByFortuneReportIdAndPlaceIdAndRecommendationDateAndConcernKey(
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<PlaceRecommendationSnapshot> findFirstByFortuneReportIdAndPlaceIdAndConcernKeyOrderByIdDesc(
             Long fortuneReportId,
             Long placeId,
-            LocalDate recommendationDate,
             String concernKey
     );
 
