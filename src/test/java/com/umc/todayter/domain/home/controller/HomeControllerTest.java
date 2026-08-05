@@ -25,6 +25,7 @@ import com.umc.todayter.domain.place.dto.response.PlaceSearchAppliedFiltersRespo
 import com.umc.todayter.domain.place.dto.response.PlaceSearchPageResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceSearchResponse;
 import com.umc.todayter.domain.place.service.EditorPickService;
+import com.umc.todayter.domain.place.service.PlaceDetailService;
 import com.umc.todayter.domain.place.service.PlaceSearchService;
 import com.umc.todayter.domain.place.service.PlaceService;
 import com.umc.todayter.domain.place.service.PlaceThumbnailService;
@@ -108,6 +109,9 @@ class HomeControllerTest {
 
     @MockitoBean
     private PlaceThumbnailService placeThumbnailService;
+
+    @MockitoBean
+    private PlaceDetailService placeDetailService;
 
     @MockitoBean
     private JwtProvider jwtProvider;
