@@ -11,9 +11,7 @@ import java.util.List;
 public interface VisitRecordRepository extends JpaRepository<VisitRecord, Long> {
 
     boolean existsByMemberIdAndPlaceIdAndType(Long memberId, Long placeId, RecordType type);
-
     boolean existsByMemberIdAndPlaceId(Long memberId, Long placeId);
-
     long countByPlaceIdAndType(Long placeId, RecordType type);
 
     List<VisitRecord> findByPlaceIdAndTypeOrderByCreatedAtDesc(Long placeId, RecordType type);

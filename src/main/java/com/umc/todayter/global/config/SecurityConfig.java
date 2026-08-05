@@ -1,6 +1,6 @@
 package com.umc.todayter.global.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.umc.todayter.global.apiPayload.response.ApiResponse;
 import com.umc.todayter.global.apiPayload.response.ErrorCode;
 import com.umc.todayter.global.security.jwt.JwtAuthenticationFilter;
@@ -25,11 +25,10 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtProvider jwtProvider;
+    private final ObjectMapper objectMapper;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-
-        ObjectMapper objectMapper = new ObjectMapper();
 
         AuthenticationEntryPoint authenticationEntryPoint =
                 (request, response, exception) -> {
@@ -83,7 +82,13 @@ public class SecurityConfig {
                                 "/places/explore-filters",
                                 "/places/*/thumbnail"
                         ).permitAll()
+                        .requestMatchers(HttpMethod.GET, "/recommendations/places/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/recommendations/places/shared/*").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/recommendations/places/*/share").permitAll()
                         .requestMatchers(HttpMethod.GET, "/home/header").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/home/today-energy").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/home/energy-routines").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/home/recommended-place").permitAll()
 
                         // 추가
                         .requestMatchers(
@@ -92,6 +97,7 @@ public class SecurityConfig {
                                 "/actuator/health",
                                 "/api/guest-sessions/**",
                                 "/api/guest-onboarding/**",
+                                "/fortune-reports/**",
                                 "/auth/dev/**",
                                 "/auth/kakao/login",
                                 "/auth/reissue"
@@ -105,7 +111,7 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler)
                 )
 
-                .addFilterBefore(new JwtAuthenticationFilter(jwtProvider), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(new JwtAuthenticationFilter(jwtProvider, objectMapper), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

@@ -1,0 +1,203 @@
+package com.umc.todayter.domain.fortune.entity;
+
+import tools.jackson.databind.JsonNode;
+import com.umc.todayter.domain.fortune.enums.FortuneReportStatus;
+import com.umc.todayter.domain.fortune.enums.FortuneReportStep;
+import com.umc.todayter.domain.onboarding.entity.Onboarding;
+import com.umc.todayter.global.entity.BaseEntity;
+import jakarta.persistence.*;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+// TODO: Flyway/Liquibase 도입 시 기존 DB에도 chk_fortune_reports_single_owner XOR 제약을 추가한다.
+@Table(name = "fortune_reports", indexes = {
+        @Index(name = "idx_fortune_reports_member_status", columnList = "member_id,status"),
+        @Index(name = "idx_fortune_reports_guest_status", columnList = "guest_session_id,status"),
+        @Index(name = "idx_fortune_reports_share_token", columnList = "share_token", unique = true)
+}, check = @CheckConstraint(
+        name = "chk_fortune_reports_single_owner",
+        constraint = "(member_id is null) <> (guest_session_id is null)"
+))
+public class FortuneReport extends BaseEntity {
+
+    @Version
+    private Long version;
+
+    @Column(name = "member_id")
+    private Long memberId;
+
+    @Column(name = "guest_session_id")
+    private Long guestSessionId;
+
+    @Column(name = "onboarding_id", nullable = false)
+    private Long onboardingId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private FortuneReportStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "current_step", nullable = false, length = 30)
+    private FortuneReportStep currentStep;
+
+    @Column(nullable = false)
+    private int progress;
+
+    @Column(name = "retry_count", nullable = false)
+    private int retryCount;
+
+    @Column(name = "manse_data", columnDefinition = "json")
+    private String manseData;
+
+    @Column(name = "report_content", columnDefinition = "LONGTEXT")
+    private String reportContent;
+
+    @Column(name = "share_token", length = 32, unique = true)
+    private String shareToken;
+
+    @Column(name = "failure_code", length = 50)
+    private String failureCode;
+
+    @Column(name = "failure_message", length = 255)
+    private String failureMessage;
+
+    @Column(name = "started_at")
+    private LocalDateTime startedAt;
+
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
+
+    @Column(name = "failed_at")
+    private LocalDateTime failedAt;
+
+    private static final int FAILURE_CODE_MAX_LENGTH = 50;
+    private static final int FAILURE_MESSAGE_MAX_LENGTH = 255;
+
+    public static FortuneReport createForMember(Long memberId, Onboarding onboarding) {
+        if (memberId == null) {
+            throw new IllegalArgumentException("회원 ID는 필수입니다.");
+        }
+        FortuneReport report = createFrom(onboarding);
+        report.memberId = memberId;
+        return report;
+    }
+
+    public static FortuneReport createForGuest(Long guestSessionId, Onboarding onboarding) {
+        if (guestSessionId == null) {
+            throw new IllegalArgumentException("게스트 세션 ID는 필수입니다.");
+        }
+        FortuneReport report = createFrom(onboarding);
+        report.guestSessionId = guestSessionId;
+        return report;
+    }
+
+    private static FortuneReport createFrom(Onboarding onboarding) {
+        if (onboarding == null || onboarding.getId() == null) {
+            throw new IllegalArgumentException("저장된 온보딩 정보는 필수입니다.");
+        }
+        FortuneReport report = new FortuneReport();
+        report.onboardingId = onboarding.getId();
+        report.status = FortuneReportStatus.PROCESSING;
+        report.currentStep = FortuneReportStep.WAITING;
+        report.progress = 0;
+        report.retryCount = 0;
+        return report;
+    }
+
+    public void transferToMember(Long memberId) {
+        if (memberId == null) {
+            throw new IllegalArgumentException("회원 ID는 필수입니다.");
+        }
+        this.memberId = memberId;
+        this.guestSessionId = null;
+    }
+
+    public void enableSharing(String shareToken) {
+        if (shareToken == null || shareToken.length() != 32) {
+            throw new IllegalArgumentException("공유 토큰 형식이 올바르지 않습니다.");
+        }
+        if (this.shareToken == null) {
+            this.shareToken = shareToken;
+        }
+    }
+
+    public void startAttempt() {
+        status = FortuneReportStatus.PROCESSING;
+        currentStep = FortuneReportStep.WAITING;
+        progress = 0;
+        failureCode = null;
+        failureMessage = null;
+        failedAt = null;
+        completedAt = null;
+        startedAt = LocalDateTime.now();
+    }
+
+    public void prepareRetry() {
+        retryCount++;
+        reportContent = null;
+        startAttempt();
+    }
+
+    public void advance(FortuneReportStep step, int progress) {
+        if (status != FortuneReportStatus.PROCESSING) {
+            throw new IllegalStateException("처리 중인 리포트만 진행 상태를 변경할 수 있습니다.");
+        }
+        if (progress < this.progress || progress < 0 || progress > 100) {
+            throw new IllegalArgumentException("진행률은 감소할 수 없으며 0부터 100 사이여야 합니다.");
+        }
+        this.currentStep = step;
+        this.progress = progress;
+    }
+
+    public void saveManseData(JsonNode manseData) {
+        this.manseData = manseData == null ? null : manseData.toString();
+        advance(FortuneReportStep.MANSE_DATA_CREATED, 40);
+    }
+
+    public void saveAiReport(String reportContent) {
+        this.reportContent = reportContent;
+        advance(FortuneReportStep.AI_REPORT_CREATED, 80);
+    }
+
+    public void completeWithGeneratedResult(String manseData, String reportContent) {
+        if (manseData == null || manseData.isBlank()) {
+            throw new IllegalArgumentException("만세력 정보가 필요합니다.");
+        }
+        if (reportContent == null || reportContent.isBlank()) {
+            throw new IllegalArgumentException("리포트 내용이 필요합니다.");
+        }
+
+        startAttempt();
+        this.manseData = manseData;
+        this.reportContent = reportContent;
+        complete();
+    }
+
+    public void complete() {
+        status = FortuneReportStatus.COMPLETED;
+        currentStep = FortuneReportStep.COMPLETED;
+        progress = 100;
+        completedAt = LocalDateTime.now();
+    }
+
+    public void fail(String failureCode, String failureMessage) {
+        status = FortuneReportStatus.FAILED;
+        currentStep = FortuneReportStep.FAILED;
+        this.failureCode = truncate(failureCode, FAILURE_CODE_MAX_LENGTH);
+        this.failureMessage = truncate(failureMessage, FAILURE_MESSAGE_MAX_LENGTH);
+        failedAt = LocalDateTime.now();
+    }
+
+    private static String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength);
+    }
+}
