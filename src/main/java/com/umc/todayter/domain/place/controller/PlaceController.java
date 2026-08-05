@@ -7,10 +7,12 @@ import com.umc.todayter.domain.place.dto.response.PlaceDetailResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceListResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceReviewListResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceSearchResponse;
+import com.umc.todayter.domain.place.dto.response.PlaceShareCardResponse;
 import com.umc.todayter.domain.place.service.EditorPickService;
 import com.umc.todayter.domain.place.service.PlaceDetailService;
 import com.umc.todayter.domain.place.service.PlaceSearchService;
 import com.umc.todayter.domain.place.service.PlaceService;
+import com.umc.todayter.domain.place.service.PlaceShareCardService;
 import com.umc.todayter.domain.place.service.PlaceThumbnailService;
 import com.umc.todayter.global.apiPayload.response.ApiResponse;
 import com.umc.todayter.global.apiPayload.response.SuccessCode;
@@ -46,6 +48,7 @@ public class PlaceController {
     private final EditorPickService editorPickService;
     private final PlaceThumbnailService placeThumbnailService;
     private final PlaceDetailService placeDetailService;
+    private final PlaceShareCardService placeShareCardService;
 
     @Operation(summary = "장소 검색 목록 조회", description = "검색어, 지역, 테마, 오행 조건으로 활성 장소 목록을 조회합니다.")
     @SecurityRequirements
@@ -120,6 +123,16 @@ public class PlaceController {
     @GetMapping("/{placeId}/reviews")
     public ResponseEntity<ApiResponse<PlaceReviewListResponse>> getPlaceReviews(@PathVariable Long placeId) {
         PlaceReviewListResponse result = placeDetailService.getPlaceReviews(placeId);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.onSuccess(result, SuccessCode.OK));
+    }
+
+    @Operation(summary = "스토리 공유 카드 이미지 조회", description = "장소명, 오행, Google Places 대표 이미지 URL을 조회합니다.")
+    @GetMapping("/{placeId}/share-cards")
+    public ResponseEntity<ApiResponse<PlaceShareCardResponse>> getShareCard(@PathVariable Long placeId) {
+        PlaceShareCardResponse result = placeShareCardService.getShareCard(placeId);
 
         return ResponseEntity
                 .status(HttpStatus.OK)
