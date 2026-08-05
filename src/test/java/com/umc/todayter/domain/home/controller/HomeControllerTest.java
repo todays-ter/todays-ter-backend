@@ -12,6 +12,7 @@ import com.umc.todayter.domain.place.service.EditorPickService;
 import com.umc.todayter.domain.place.service.PlaceDetailService;
 import com.umc.todayter.domain.place.service.PlaceSearchService;
 import com.umc.todayter.domain.place.service.PlaceService;
+import com.umc.todayter.domain.place.service.PlaceShareCardService;
 import com.umc.todayter.domain.place.service.PlaceThumbnailService;
 import com.umc.todayter.global.apiPayload.exception.CustomException;
 import com.umc.todayter.global.apiPayload.response.ErrorCode;
@@ -84,6 +85,9 @@ class HomeControllerTest {
 
     @MockitoBean
     private PlaceDetailService placeDetailService;
+
+    @MockitoBean
+    private PlaceShareCardService placeShareCardService;
 
     @MockitoBean
     private JwtProvider jwtProvider;

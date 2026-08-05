@@ -19,6 +19,8 @@ import com.umc.todayter.domain.place.dto.request.PlaceSearchRequest;
 import com.umc.todayter.domain.place.service.EditorPickService;
 import com.umc.todayter.domain.place.service.PlaceDetailService;
 import com.umc.todayter.domain.place.service.PlaceSearchService;
+import com.umc.todayter.domain.place.service.PlaceShareCardService;
+import com.umc.todayter.domain.place.dto.response.PlaceShareCardResponse;
 import com.umc.todayter.domain.place.dto.response.RegionFilterResponse;
 import com.umc.todayter.domain.place.dto.response.ThemeFilterResponse;
 import com.umc.todayter.domain.place.exception.PlaceErrorCode;
@@ -82,6 +84,9 @@ class PlaceControllerTest {
 
     @MockitoBean
     private PlaceDetailService placeDetailService;
+
+    @MockitoBean
+    private PlaceShareCardService placeShareCardService;
 
     @MockitoBean
     private JwtProvider jwtProvider;
@@ -548,6 +553,56 @@ class PlaceControllerTest {
                         .header("Authorization", "Bearer " + VALID_TOKEN))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("PLACE404_1"));
+    }
+
+    @Test
+    void getShareCard_withoutAccessToken_returnsUnauthorized() throws Exception {
+        mockMvc.perform(get("/places/1/share-cards"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.isSuccess").value(false))
+                .andExpect(jsonPath("$.code").value("COMMON401"));
+    }
+
+    @Test
+    void getShareCard_returnsPlaceNameElementAndImageUrl() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(placeShareCardService.getShareCard(1L))
+                .thenReturn(new PlaceShareCardResponse("청계천 모전교", "수", "https://cdn/place2.jpg"));
+
+        mockMvc.perform(get("/places/1/share-cards")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isSuccess").value(true))
+                .andExpect(jsonPath("$.result.placeName").value("청계천 모전교"))
+                .andExpect(jsonPath("$.result.element").value("수"))
+                .andExpect(jsonPath("$.result.imageUrl").value("https://cdn/place2.jpg"));
+    }
+
+    @Test
+    void getShareCard_placeNotFound_returnsNotFound() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(placeShareCardService.getShareCard(999L))
+                .thenThrow(new CustomException(PlaceErrorCode.PLACE_NOT_FOUND));
+
+        mockMvc.perform(get("/places/999/share-cards")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("PLACE404_1"));
+    }
+
+    @Test
+    void getShareCard_noGooglePhoto_returnsNotFoundWithImageSpecificCode() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(placeShareCardService.getShareCard(1L))
+                .thenThrow(new CustomException(PlaceErrorCode.PLACE_IMAGE_NOT_FOUND));
+
+        mockMvc.perform(get("/places/1/share-cards")
+                        .header("Authorization", "Bearer " + VALID_TOKEN))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("PLACE404_2"));
     }
 
     @Test
