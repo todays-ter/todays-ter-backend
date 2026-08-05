@@ -16,8 +16,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.List;
 
@@ -26,9 +24,9 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class PlaceSearchService {
 
-    private static final double EARTH_RADIUS_KM = 6371.0;
-
     private final PlaceRepository placeRepository;
+    private final PlaceThumbnailUrlFactory thumbnailUrlFactory;
+    private final PlaceDistanceCalculator distanceCalculator;
 
     public PlaceSearchResponse searchPlaces(PlaceSearchRequest request, String contextPathUrl) {
         String keyword = request.getTrimmedKeyword();
@@ -68,41 +66,14 @@ public class PlaceSearchService {
         return new PlaceSearchItemResponse(
                 place.getId(),
                 place.getName(),
-                thumbnailUrl(place, contextPathUrl),
+                thumbnailUrlFactory.create(place, contextPathUrl),
                 place.getSummary(),
                 new PlaceSearchTypeResponse(place.getElementType().name(), place.getElementType().getDisplayName()),
                 new PlaceSearchTypeResponse(place.getThemeType().name(), place.getThemeType().getDisplayName()),
                 place.getAverageRating(),
-                distanceKm(request, place)
+                request.hasCoordinates()
+                        ? distanceCalculator.distanceKm(request.getLatitude(), request.getLongitude(), place)
+                        : null
         );
-    }
-
-    private String thumbnailUrl(Place place, String contextPathUrl) {
-        if (!StringUtils.hasText(place.getGooglePlaceId())) {
-            return null;
-        }
-
-        return UriComponentsBuilder.fromUriString(contextPathUrl)
-                .path("/places/{placeId}/thumbnail")
-                .build(place.getId())
-                .toString();
-    }
-
-    private Double distanceKm(PlaceSearchRequest request, Place place) {
-        if (!request.hasCoordinates()) {
-            return null;
-        }
-
-        double latitudeDistance = Math.toRadians(place.getLatitude() - request.getLatitude());
-        double longitudeDistance = Math.toRadians(place.getLongitude() - request.getLongitude());
-        double requestLatitude = Math.toRadians(request.getLatitude());
-        double placeLatitude = Math.toRadians(place.getLatitude());
-
-        double a = Math.sin(latitudeDistance / 2) * Math.sin(latitudeDistance / 2)
-                + Math.cos(requestLatitude) * Math.cos(placeLatitude)
-                * Math.sin(longitudeDistance / 2) * Math.sin(longitudeDistance / 2);
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-        return Math.round(EARTH_RADIUS_KM * c * 10.0) / 10.0;
     }
 }

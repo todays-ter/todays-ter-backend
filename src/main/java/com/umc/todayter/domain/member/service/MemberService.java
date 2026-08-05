@@ -23,6 +23,13 @@ public class MemberService {
                 .orElseThrow(() -> new CustomException(MemberErrorCode.MEMBER_NOT_FOUND));
     }
 
+    @Transactional
+    public Member getActiveMemberForUpdate(Long memberId) {
+        return memberRepository
+                .findByIdAndStatusForUpdate(memberId, MemberStatus.ACTIVE)
+                .orElseThrow(() -> new CustomException(MemberErrorCode.MEMBER_NOT_FOUND));
+    }
+
     public MemberInfoResponse getMemberInfo(Long memberId) {
         Member member = getActiveMember(memberId);
 

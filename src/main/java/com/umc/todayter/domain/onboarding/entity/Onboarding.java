@@ -3,6 +3,7 @@ package com.umc.todayter.domain.onboarding.entity;
 import com.umc.todayter.domain.onboarding.dto.request.GuestSajuRequest;
 import com.umc.todayter.domain.onboarding.enums.CalendarType;
 import com.umc.todayter.domain.onboarding.enums.ConcernType;
+import com.umc.todayter.domain.onboarding.enums.Gender;
 import com.umc.todayter.domain.onboarding.enums.OnboardingStep;
 import com.umc.todayter.global.entity.BaseEntity;
 import jakarta.persistence.*;
@@ -40,6 +41,10 @@ public class Onboarding extends BaseEntity {
     private Long memberId;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "gender", length = 10)
+    private Gender gender;
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "calendar_type")
     private CalendarType calendarType;
 
@@ -72,6 +77,7 @@ public class Onboarding extends BaseEntity {
     }
 
     public void updateSaju(GuestSajuRequest request) {
+        this.gender = request.gender();
         updateSaju(
                 request.calendarType(),
                 request.birthDate(),
@@ -98,7 +104,7 @@ public class Onboarding extends BaseEntity {
 
     // 사주 정보가 정상적으로 저장되어 있는지 확인
     public boolean hasSajuInformation() {
-        if (calendarType == null || birthDate == null) {
+        if (gender == null || calendarType == null || birthDate == null) {
             return false;
         }
 

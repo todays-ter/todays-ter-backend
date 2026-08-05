@@ -28,10 +28,11 @@ public class CorsConfig {
          *
          * 인증 쿠키를 허용하므로 "*" 대신 Origin을 명시해야 함
          */
-        config.setAllowedOrigins(List.of(
+        config.setAllowedOriginPatterns(List.of(
                 "http://localhost:3000",
                 "http://localhost:5173",
-                "https://todays-ter-frontend.vercel.app"
+                "https://todays-ter-frontend.vercel.app",
+                "https://todays-ter-frontend-*.vercel.app"
         ));
 
         // 프론트엔드에서 사용할 HTTP 메서드 허용

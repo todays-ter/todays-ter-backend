@@ -602,7 +602,7 @@ class PlaceControllerTest {
         mockMvc.perform(get("/places/1/share-cards")
                         .header("Authorization", "Bearer " + VALID_TOKEN))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.code").value("PLACE404_2"));
+                .andExpect(jsonPath("$.code").value("PLACE404_3"));
     }
 
     @Test

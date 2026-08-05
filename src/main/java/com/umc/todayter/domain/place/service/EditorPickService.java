@@ -10,8 +10,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.List;
 
@@ -21,6 +19,7 @@ import java.util.List;
 public class EditorPickService {
 
     private final PlaceRepository placeRepository;
+    private final PlaceThumbnailUrlFactory thumbnailUrlFactory;
 
     public EditorPickResponse getEditorPicks(Integer limit, String contextPathUrl) {
         PageRequest pageRequest = PageRequest.of(
@@ -43,23 +42,12 @@ public class EditorPickService {
         return new EditorPickItemResponse(
                 place.getId(),
                 place.getName(),
-                thumbnailUrl(place, contextPathUrl),
+                thumbnailUrlFactory.create(place, contextPathUrl),
                 place.getSummary(),
                 place.getDescription(),
                 new PlaceSearchTypeResponse(place.getElementType().name(), place.getElementType().getDisplayName()),
                 new PlaceSearchTypeResponse(place.getThemeType().name(), place.getThemeType().getDisplayName()),
                 place.getAverageRating()
         );
-    }
-
-    private String thumbnailUrl(Place place, String contextPathUrl) {
-        if (!StringUtils.hasText(place.getGooglePlaceId())) {
-            return null;
-        }
-
-        return UriComponentsBuilder.fromUriString(contextPathUrl)
-                .path("/places/{placeId}/thumbnail")
-                .build(place.getId())
-                .toString();
     }
 }

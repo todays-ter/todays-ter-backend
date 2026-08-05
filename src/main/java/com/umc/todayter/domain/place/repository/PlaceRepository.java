@@ -20,6 +20,8 @@ public interface PlaceRepository extends JpaRepository<Place, Long>, JpaSpecific
     List<ThemePlaceCount> countActivePlacesGroupByThemeType();
 
     Optional<Place> findByIdAndActiveTrue(Long id);
+    Optional<Place> findByName(String name);
 
     List<Place> findByActiveTrueAndEditorPickTrue(Pageable pageable);
+    List<Place> findAllByActiveTrue();
 }
