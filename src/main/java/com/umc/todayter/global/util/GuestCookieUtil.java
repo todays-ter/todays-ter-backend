@@ -17,8 +17,8 @@ public class GuestCookieUtil {
         ResponseCookie cookie = ResponseCookie
                 .from(COOKIE_NAME, guestId)
                 .httpOnly(true)
-                .secure(false) // 운영 환경에서는 true
-                .sameSite("Lax")
+                .secure(true)
+                .sameSite("None")
                 .path("/")
                 .maxAge(COOKIE_MAX_AGE)
                 .build();
@@ -30,8 +30,8 @@ public class GuestCookieUtil {
         ResponseCookie cookie = ResponseCookie
                 .from(COOKIE_NAME, "")
                 .httpOnly(true)
-                .secure(false)
-                .sameSite("Lax")
+                .secure(true)
+                .sameSite("None")
                 .path("/")
                 .maxAge(Duration.ZERO)
                 .build();
