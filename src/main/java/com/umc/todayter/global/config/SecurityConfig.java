@@ -75,12 +75,21 @@ public class SecurityConfig {
                 // URL 접근 권한 설정
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                        // 회원 개인 장소 정보는 인증 필요
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/places/me"
+                        ).authenticated()
+
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/places",
                                 "/places/editor-picks",
                                 "/places/explore-filters",
-                                "/places/*/thumbnail"
+                                "/places/*/thumbnail",
+                                "/places/*",
+                                "/places/*/reviews"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/recommendations/places/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/recommendations/places/shared/*").permitAll()

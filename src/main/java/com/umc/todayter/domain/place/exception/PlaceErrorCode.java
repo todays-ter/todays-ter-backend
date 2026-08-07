@@ -13,6 +13,7 @@ public enum PlaceErrorCode implements BaseCode {
     INVALID_TYPE_PARAMETER(HttpStatus.BAD_REQUEST, "PLACE400_2", "type 값이 올바르지 않습니다."),
     PLACE_NOT_FOUND(HttpStatus.NOT_FOUND, "PLACE404_1", "존재하지 않는 장소입니다."),
     SHARED_RECOMMENDATION_NOT_FOUND(HttpStatus.NOT_FOUND, "PLACE404_2", "공유된 장소 추천을 찾을 수 없습니다."),
+    PLACE_IMAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "PLACE404_3", "google에서 사진을 제공하지 않습니다."),
     PERSONALIZED_RECOMMENDATION_UNAVAILABLE(HttpStatus.CONFLICT, "PLACE409_1", "완료된 사주 리포트가 없어 맞춤 추천을 생성할 수 없습니다.")
     ;
 
