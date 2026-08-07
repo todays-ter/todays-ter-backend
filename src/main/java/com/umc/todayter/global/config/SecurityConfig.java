@@ -80,7 +80,9 @@ public class SecurityConfig {
                                 "/places",
                                 "/places/editor-picks",
                                 "/places/explore-filters",
-                                "/places/*/thumbnail"
+                                "/places/*/thumbnail",
+                                "/places/*",
+                                "/places/*/reviews"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/recommendations/places/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/recommendations/places/shared/*").permitAll()
