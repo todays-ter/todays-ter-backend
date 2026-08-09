@@ -1,6 +1,8 @@
 package com.umc.todayter.domain.onboarding.controller;
 
 import com.umc.todayter.domain.onboarding.dto.response.GuestSessionResponse;
+import com.umc.todayter.domain.onboarding.dto.response.GuestSessionStatusResponse;
+import com.umc.todayter.domain.onboarding.enums.code.GuestSuccessCode;
 import com.umc.todayter.domain.onboarding.service.GuestSessionService;
 import com.umc.todayter.global.apiPayload.response.ApiResponse;
 import com.umc.todayter.global.apiPayload.response.SuccessCode;
@@ -12,10 +14,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CookieValue;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Guest Session", description = "비회원 세션 API")
 @RestController
@@ -48,5 +48,26 @@ public class GuestSessionController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(ApiResponse.onSuccess(result.response(), SuccessCode.OK));
+    }
+
+    @Operation(
+            summary = "비회원 쿠키 존재 여부 조회",
+            description = "현재 요청에 guest_id 쿠키가 존재하는지 확인합니다."
+    )
+    @SecurityRequirements
+    @GetMapping("/status")
+    public ResponseEntity<ApiResponse<GuestSessionStatusResponse>> getGuestSessionStatus(
+            @CookieValue(
+                    name = GuestCookieUtil.COOKIE_NAME,
+                    required = false
+            ) String guestId
+    ) {
+        boolean hasGuestId = StringUtils.hasText(guestId);
+
+        GuestSessionStatusResponse result = new GuestSessionStatusResponse(hasGuestId);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.onSuccess(result, GuestSuccessCode.GUEST_SESSION_STATUS_RETRIEVED));
     }
 }
