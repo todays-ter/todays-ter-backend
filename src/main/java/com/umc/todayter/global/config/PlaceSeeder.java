@@ -38,7 +38,7 @@ public class PlaceSeeder implements ApplicationRunner {
     public void run(ApplicationArguments args) throws IOException {
         List<Place> places = readSeedPlaces();
         if (placeRepository.count() > 0) {
-            syncMapUrls(places);
+            syncExistingPlaces(places);
             return;
         }
 
@@ -52,11 +52,17 @@ public class PlaceSeeder implements ApplicationRunner {
         }
     }
 
-    private void syncMapUrls(List<Place> seedPlaces) {
+    private void syncExistingPlaces(List<Place> seedPlaces) {
         seedPlaces.stream()
-                .filter(place -> StringUtils.hasText(place.getMapUrl()))
                 .forEach(seedPlace -> placeRepository.findByName(seedPlace.getName())
-                        .ifPresent(existingPlace -> existingPlace.updateMapUrl(seedPlace.getMapUrl())));
+                        .ifPresent(existingPlace -> {
+                            if (StringUtils.hasText(seedPlace.getMapUrl())) {
+                                existingPlace.updateMapUrl(seedPlace.getMapUrl());
+                            }
+                            if (StringUtils.hasText(seedPlace.getGooglePlaceId())) {
+                                existingPlace.updateGooglePlaceId(seedPlace.getGooglePlaceId());
+                            }
+                        }));
     }
 
     private List<Place> readSeedPlaces() throws IOException {
@@ -96,7 +102,7 @@ public class PlaceSeeder implements ApplicationRunner {
     private Place toPlace(String[] f) {
         // name,address,latitude,longitude,elementType,terrainType,
         // loveScore,relationshipScore,careerScore,studyScore,restScore,transitionScore,
-        // themeType,summary,description,editorPick,active
+        // themeType,summary,description,editorPick,active,mapUrl,googlePlaceId
         return Place.builder()
                 .name(f[0])
                 .address(f[1])
@@ -116,6 +122,7 @@ public class PlaceSeeder implements ApplicationRunner {
                 .editorPick(Boolean.parseBoolean(f[15]))
                 .active(Boolean.parseBoolean(f[16]))
                 .mapUrl(f.length > 17 && !f[17].isBlank() ? f[17] : null)
+                .googlePlaceId(f.length > 18 && !f[18].isBlank() ? f[18] : null)
                 .regionCode(RegionCode.SEOUL)
                 .averageRating(0.0)
                 .reviewCount(0)
