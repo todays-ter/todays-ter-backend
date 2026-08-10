@@ -78,6 +78,10 @@ import lombok.NoArgsConstructor;
         this.mapUrl = mapUrl;
     }
 
+    public void updateGooglePlaceId(String googlePlaceId) {
+        this.googlePlaceId = googlePlaceId;
+    }
+
     @Column(name = "terrain_type", nullable = false)
     private String terrainType;
 
