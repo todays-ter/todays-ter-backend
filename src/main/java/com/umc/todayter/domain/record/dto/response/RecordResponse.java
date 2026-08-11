@@ -9,6 +9,7 @@ import com.umc.todayter.domain.record.enums.RecordType;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.function.UnaryOperator;
 
 public record RecordResponse(
         @JsonIgnore Long id,
@@ -28,9 +29,14 @@ public record RecordResponse(
         return Map.of(key, id);
     }
 
-    public static RecordResponse from(VisitRecord visitRecord, List<VisitRecordImage> images, LocalDateTime visitVerifiedAt) {
+    public static RecordResponse from(
+            VisitRecord visitRecord,
+            List<VisitRecordImage> images,
+            LocalDateTime visitVerifiedAt,
+            UnaryOperator<String> urlResolver
+    ) {
         List<ImageInfo> imageInfos = images.stream()
-                .map(ImageInfo::from)
+                .map(image -> ImageInfo.from(image, urlResolver))
                 .toList();
 
         return new RecordResponse(

@@ -14,6 +14,7 @@ import com.umc.todayter.domain.record.repository.VisitRecordImageRepository;
 import com.umc.todayter.domain.record.repository.VisitRecordRepository;
 import com.umc.todayter.global.apiPayload.exception.CustomException;
 import com.umc.todayter.global.security.SecurityUtil;
+import com.umc.todayter.global.util.S3Uploader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +32,7 @@ public class PlaceDetailService {
     private final SavedPlaceRepository savedPlaceRepository;
     private final VisitRecordRepository visitRecordRepository;
     private final VisitRecordImageRepository visitRecordImageRepository;
+    private final S3Uploader s3Uploader;
 
     public PlaceDetailResponse getPlaceDetail(Long placeId, String contextPathUrl) {
         Place place = findActivePlace(placeId);
@@ -61,7 +63,8 @@ public class PlaceDetailService {
                 .findFirst()
                 .map(review -> PlaceReviewItemResponse.from(
                         review,
-                        imagesByRecordId.getOrDefault(review.getId(), List.of())
+                        imagesByRecordId.getOrDefault(review.getId(), List.of()),
+                        s3Uploader::presignedGetUrl
                 ))
                 .orElse(null);
 
@@ -69,7 +72,8 @@ public class PlaceDetailService {
                 .filter(review -> !review.getMember().getId().equals(memberId))
                 .map(review -> PlaceReviewItemResponse.from(
                         review,
-                        imagesByRecordId.getOrDefault(review.getId(), List.of())
+                        imagesByRecordId.getOrDefault(review.getId(), List.of()),
+                        s3Uploader::presignedGetUrl
                 ))
                 .toList();
 

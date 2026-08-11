@@ -17,6 +17,7 @@ import com.umc.todayter.domain.record.repository.VisitRecordImageRepository;
 import com.umc.todayter.domain.record.repository.VisitRecordRepository;
 import com.umc.todayter.global.apiPayload.exception.CustomException;
 import com.umc.todayter.global.security.AuthPrincipal;
+import com.umc.todayter.global.util.S3Uploader;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,6 +38,8 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -55,6 +58,9 @@ class PlaceDetailServiceTest {
     @Mock
     private VisitRecordImageRepository visitRecordImageRepository;
 
+    @Mock
+    private S3Uploader s3Uploader;
+
     @InjectMocks
     private PlaceDetailService placeDetailService;
 
@@ -63,6 +69,8 @@ class PlaceDetailServiceTest {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(new AuthPrincipal(1L), null, Collections.emptyList())
         );
+        lenient().when(s3Uploader.presignedGetUrl(anyString()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @AfterEach
