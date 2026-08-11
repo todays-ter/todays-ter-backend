@@ -353,7 +353,7 @@ class PlaceControllerTest {
         when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
         when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
         when(placeService.getMyPlaces("saved")).thenReturn(new PlaceListResponse(List.of(
-                new PlaceListItemResponse(1L, "경복궁", "/places/1/thumbnail", List.of("관계", "일·커리어"), LocalDate.of(2026, 6, 29), "화")
+                new PlaceListItemResponse(1L, "경복궁", "/places/1/thumbnail", List.of("관계", "일·커리어"), LocalDate.of(2026, 6, 29), "화", null)
         )));
 
         mockMvc.perform(get("/places/me")
@@ -365,6 +365,21 @@ class PlaceControllerTest {
                 .andExpect(jsonPath("$.result.places[0].placeName").value("경복궁"))
                 .andExpect(jsonPath("$.result.places[0].categories[0]").value("관계"))
                 .andExpect(jsonPath("$.result.places[0].element").value("화"));
+    }
+
+    @Test
+    void getMyPlaces_visitedType_includesRecordId() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(placeService.getMyPlaces("visited")).thenReturn(new PlaceListResponse(List.of(
+                new PlaceListItemResponse(1L, "경복궁", "/places/1/thumbnail", List.of("관계", "일·커리어"), LocalDate.of(2026, 6, 29), "화", 10L)
+        )));
+
+        mockMvc.perform(get("/places/me")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .param("type", "visited"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.places[0].recordId").value(10));
     }
 
     @Test

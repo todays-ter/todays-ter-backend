@@ -14,16 +14,22 @@ public record PlaceListItemResponse(
         String thumbnailUrl,
         List<String> categories,
         LocalDate savedDate,
-        String element
+        String element,
+        Long recordId
 ) {
     public static PlaceListItemResponse from(Place place, LocalDate savedDate) {
+        return from(place, savedDate, null);
+    }
+
+    public static PlaceListItemResponse from(Place place, LocalDate savedDate, Long recordId) {
         return new PlaceListItemResponse(
                 place.getId(),
                 place.getName(),
                 "/places/%d/thumbnail".formatted(place.getId()),
                 topCategories(place),
                 savedDate,
-                place.getElementType().getDisplayName()
+                place.getElementType().getDisplayName(),
+                recordId
         );
     }
 

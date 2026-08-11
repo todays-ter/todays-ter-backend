@@ -75,7 +75,7 @@ public class PlaceService {
                     .map(saved -> PlaceListItemResponse.from(saved.getPlace(), saved.getCreatedAt().toLocalDate()))
                     .toList();
             case TYPE_VISITED -> visitRecordRepository.findLatestPerPlaceByMemberId(memberId).stream()
-                    .map((VisitRecord vr) -> PlaceListItemResponse.from(vr.getPlace(), vr.getCreatedAt().toLocalDate()))
+                    .map((VisitRecord vr) -> PlaceListItemResponse.from(vr.getPlace(), vr.getCreatedAt().toLocalDate(), vr.getId()))
                     .toList();
             default -> throw new CustomException(PlaceErrorCode.INVALID_TYPE_PARAMETER);
         };
