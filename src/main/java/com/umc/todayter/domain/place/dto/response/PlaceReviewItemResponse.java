@@ -6,6 +6,7 @@ import com.umc.todayter.domain.record.entity.VisitRecordImage;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.function.UnaryOperator;
 
 public record PlaceReviewItemResponse(
         Long reviewId,
@@ -15,9 +16,13 @@ public record PlaceReviewItemResponse(
         List<ImageInfo> images,
         LocalDateTime createdAt
 ) {
-    public static PlaceReviewItemResponse from(VisitRecord visitRecord, List<VisitRecordImage> images) {
+    public static PlaceReviewItemResponse from(
+            VisitRecord visitRecord,
+            List<VisitRecordImage> images,
+            UnaryOperator<String> urlResolver
+    ) {
         List<ImageInfo> imageInfos = images.stream()
-                .map(ImageInfo::from)
+                .map(image -> ImageInfo.from(image, urlResolver))
                 .toList();
 
         return new PlaceReviewItemResponse(
