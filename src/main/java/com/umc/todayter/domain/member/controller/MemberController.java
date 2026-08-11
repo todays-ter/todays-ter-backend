@@ -2,14 +2,12 @@ package com.umc.todayter.domain.member.controller;
 
 import com.umc.todayter.domain.member.dto.request.MemberSajuUpdateRequest;
 import com.umc.todayter.domain.member.dto.request.MemberWithdrawRequest;
+import com.umc.todayter.domain.member.dto.response.MemberConcernResponse;
 import com.umc.todayter.domain.member.dto.response.MemberInfoResponse;
 import com.umc.todayter.domain.member.dto.response.MemberSajuResponse;
 import com.umc.todayter.domain.member.dto.response.SocialAccountListResponse;
 import com.umc.todayter.domain.member.enums.code.MemberSuccessCode;
-import com.umc.todayter.domain.member.service.MemberSajuService;
-import com.umc.todayter.domain.member.service.MemberService;
-import com.umc.todayter.domain.member.service.MemberWithdrawService;
-import com.umc.todayter.domain.member.service.SocialAccountQueryService;
+import com.umc.todayter.domain.member.service.*;
 import com.umc.todayter.global.apiPayload.response.ApiResponse;
 import com.umc.todayter.global.security.SecurityUtil;
 import com.umc.todayter.global.util.AuthCookieUtil;
@@ -29,6 +27,7 @@ import org.springframework.web.bind.annotation.*;
 public class MemberController {
 
     private final MemberSajuService memberSajuService;
+    private final MemberConcernService memberConcernService;
     private final MemberService memberService;
     private final SocialAccountQueryService socialAccountQueryService;
     private final MemberWithdrawService memberWithdrawService;
@@ -71,6 +70,24 @@ public class MemberController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(ApiResponse.onSuccess(result, MemberSuccessCode.SAJU_UPDATED));
+    }
+
+    @Operation(
+            summary = "회원 고민 유형 조회",
+            description = """
+            현재 로그인한 회원에게 연결된 고민 유형을 조회합니다.
+            비회원 온보딩에서 회원 계정으로 이전된 고민 정보도 동일하게 조회됩니다.
+            """
+    )
+    @GetMapping("/me/concerns")
+    public ResponseEntity<ApiResponse<MemberConcernResponse>> getConcerns() {
+        Long memberId = SecurityUtil.getCurrentMemberId();
+
+        MemberConcernResponse result = memberConcernService.getConcerns(memberId);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.onSuccess(result, MemberSuccessCode.CONCERNS_RETRIEVED));
     }
 
     @Operation(
