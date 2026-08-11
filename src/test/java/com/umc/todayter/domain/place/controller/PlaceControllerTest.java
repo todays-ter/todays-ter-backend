@@ -4,6 +4,7 @@ import com.umc.todayter.domain.place.dto.response.EditorPickItemResponse;
 import com.umc.todayter.domain.place.dto.response.EditorPickResponse;
 import com.umc.todayter.domain.place.dto.response.ElementFilterResponse;
 import com.umc.todayter.domain.place.dto.response.ExploreFiltersResponse;
+import com.umc.todayter.domain.place.dto.response.PlaceBookmarkResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceDetailResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceListItemResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceListResponse;
@@ -52,6 +53,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -351,7 +353,7 @@ class PlaceControllerTest {
         when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
         when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
         when(placeService.getMyPlaces("saved")).thenReturn(new PlaceListResponse(List.of(
-                new PlaceListItemResponse(1L, "경복궁", "/places/1/thumbnail", List.of("관계", "일·커리어"), LocalDate.of(2026, 6, 29), "화")
+                new PlaceListItemResponse(1L, "경복궁", "/places/1/thumbnail", List.of("관계", "일·커리어"), LocalDate.of(2026, 6, 29), "화", null)
         )));
 
         mockMvc.perform(get("/places/me")
@@ -363,6 +365,21 @@ class PlaceControllerTest {
                 .andExpect(jsonPath("$.result.places[0].placeName").value("경복궁"))
                 .andExpect(jsonPath("$.result.places[0].categories[0]").value("관계"))
                 .andExpect(jsonPath("$.result.places[0].element").value("화"));
+    }
+
+    @Test
+    void getMyPlaces_visitedType_includesRecordId() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(placeService.getMyPlaces("visited")).thenReturn(new PlaceListResponse(List.of(
+                new PlaceListItemResponse(1L, "경복궁", "/places/1/thumbnail", List.of("관계", "일·커리어"), LocalDate.of(2026, 6, 29), "화", 10L)
+        )));
+
+        mockMvc.perform(get("/places/me")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .param("type", "visited"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.places[0].recordId").value(10));
     }
 
     @Test
@@ -436,6 +453,7 @@ class PlaceControllerTest {
                         "서울 중구 무교동",
                         37.5665,
                         126.9780,
+                        "https://map.example.com/places/1",
                         9L,
                         false,
                         false
@@ -456,17 +474,39 @@ class PlaceControllerTest {
                 .andExpect(jsonPath("$.result.address").value("서울 중구 무교동"))
                 .andExpect(jsonPath("$.result.latitude").value(37.5665))
                 .andExpect(jsonPath("$.result.longitude").value(126.9780))
+                .andExpect(jsonPath("$.result.mapUrl").value("https://map.example.com/places/1"))
                 .andExpect(jsonPath("$.result.reviewCount").value(9))
                 .andExpect(jsonPath("$.result.isSaved").value(false))
                 .andExpect(jsonPath("$.result.isVisited").value(false));
     }
 
     @Test
-    void getPlaceDetail_withoutAuthorizationHeader_returnsUnauthorized() throws Exception {
+    void getPlaceDetail_withoutAuthorizationHeader_returnsOkForGuest() throws Exception {
+        when(placeDetailService.getPlaceDetail(org.mockito.ArgumentMatchers.eq(1L), org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(new PlaceDetailResponse(
+                        1L,
+                        "청계천 모전교",
+                        null,
+                        "수",
+                        List.of("감정 회복"),
+                        new PlaceDetailResponse.PlaceDescription(
+                                "이 터의 특징은 무엇인가요?",
+                                "수(水) 기운이 강해 감정 정리와 회복에 좋고 오늘의 흐름과 잘 맞아요."
+                        ),
+                        "서울 중구 무교동",
+                        37.5665,
+                        126.9780,
+                        "https://map.example.com/places/1",
+                        9L,
+                        false,
+                        false
+                ));
+
         mockMvc.perform(get("/places/1"))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.isSuccess").value(false))
-                .andExpect(jsonPath("$.code").value("COMMON401"));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isSuccess").value(true))
+                .andExpect(jsonPath("$.result.isSaved").value(false))
+                .andExpect(jsonPath("$.result.isVisited").value(false));
     }
 
     @Test
@@ -483,11 +523,41 @@ class PlaceControllerTest {
     }
 
     @Test
-    void getPlaceReviews_withoutAccessToken_returnsUnauthorized() throws Exception {
-        mockMvc.perform(get("/places/1/reviews"))
+    void updateBookmark_withoutAuthorizationHeader_returnsUnauthorized() throws Exception {
+        mockMvc.perform(patch("/places/1/bookmark")
+                        .contentType("application/json")
+                        .content("{\"isSaved\":true}"))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.isSuccess").value(false))
                 .andExpect(jsonPath("$.code").value("COMMON401"));
+    }
+
+    @Test
+    void updateBookmark_withValidToken_returnsOk() throws Exception {
+        when(jwtProvider.validateAccessToken(VALID_TOKEN)).thenReturn(true);
+        when(jwtProvider.getMemberId(VALID_TOKEN)).thenReturn(1L);
+        when(placeService.updateBookmark(1L, true))
+                .thenReturn(new PlaceBookmarkResponse(1L, true));
+
+        mockMvc.perform(patch("/places/1/bookmark")
+                        .header("Authorization", "Bearer " + VALID_TOKEN)
+                        .contentType("application/json")
+                        .content("{\"isSaved\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isSuccess").value(true))
+                .andExpect(jsonPath("$.result.placeId").value(1))
+                .andExpect(jsonPath("$.result.isSaved").value(true));
+    }
+
+    @Test
+    void getPlaceReviews_withoutAccessToken_returnsOkForGuest() throws Exception {
+        when(placeDetailService.getPlaceReviews(1L))
+                .thenReturn(new PlaceReviewListResponse(0, null, List.of()));
+
+        mockMvc.perform(get("/places/1/reviews"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isSuccess").value(true))
+                .andExpect(jsonPath("$.result.totalCount").value(0))
+                .andExpect(jsonPath("$.result.reviews").isArray());
     }
 
     @Test

@@ -1,8 +1,10 @@
 package com.umc.todayter.domain.place.controller;
 
+import com.umc.todayter.domain.place.dto.request.PlaceBookmarkRequest;
 import com.umc.todayter.domain.place.dto.request.PlaceSearchRequest;
 import com.umc.todayter.domain.place.dto.response.EditorPickResponse;
 import com.umc.todayter.domain.place.dto.response.ExploreFiltersResponse;
+import com.umc.todayter.domain.place.dto.response.PlaceBookmarkResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceDetailResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceListResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceReviewListResponse;
@@ -29,7 +31,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -113,6 +117,19 @@ public class PlaceController {
                 .fromCurrentContextPath()
                 .toUriString();
         PlaceDetailResponse result = placeDetailService.getPlaceDetail(placeId, contextPathUrl);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.onSuccess(result, SuccessCode.OK));
+    }
+
+    @Operation(summary = "장소 즐겨찾기 등록/취소", description = "isSaved=true이면 장소를 저장하고 false이면 저장을 해제합니다.")
+    @PatchMapping("/{placeId}/bookmark")
+    public ResponseEntity<ApiResponse<PlaceBookmarkResponse>> updateBookmark(
+            @PathVariable Long placeId,
+            @Valid @RequestBody PlaceBookmarkRequest request
+    ) {
+        PlaceBookmarkResponse result = placeService.updateBookmark(placeId, request.isSaved());
 
         return ResponseEntity
                 .status(HttpStatus.OK)

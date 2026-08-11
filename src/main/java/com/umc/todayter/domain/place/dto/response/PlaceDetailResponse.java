@@ -19,6 +19,7 @@ public record PlaceDetailResponse(
         String address,
         Double latitude,
         Double longitude,
+        String mapUrl,
         Long reviewCount,
         Boolean isSaved,
         Boolean isVisited
@@ -53,6 +54,7 @@ public record PlaceDetailResponse(
                 place.getAddress(),
                 place.getLatitude(),
                 place.getLongitude(),
+                place.getMapUrl(),
                 reviewCount,
                 isSaved,
                 isVisited

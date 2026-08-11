@@ -64,6 +64,7 @@ public class PlaceRecommendationSnapshotService {
                 .orElseThrow(() -> new CustomException(PlaceErrorCode.SHARED_RECOMMENDATION_NOT_FOUND));
     }
 
+    @Transactional
     public PlaceRecommendationSnapshot getOrCreate(RecommendationMatchContext match, Place place) {
         LocalDate today = LocalDate.now(clock);
         String concernKey = concernKey(match.concerns());
