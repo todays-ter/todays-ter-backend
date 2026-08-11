@@ -1,13 +1,20 @@
 package com.umc.todayter.domain.place.controller;
 
+import com.umc.todayter.domain.place.dto.request.PlaceBookmarkRequest;
 import com.umc.todayter.domain.place.dto.request.PlaceSearchRequest;
 import com.umc.todayter.domain.place.dto.response.EditorPickResponse;
 import com.umc.todayter.domain.place.dto.response.ExploreFiltersResponse;
+import com.umc.todayter.domain.place.dto.response.PlaceBookmarkResponse;
+import com.umc.todayter.domain.place.dto.response.PlaceDetailResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceListResponse;
+import com.umc.todayter.domain.place.dto.response.PlaceReviewListResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceSearchResponse;
+import com.umc.todayter.domain.place.dto.response.PlaceShareCardResponse;
 import com.umc.todayter.domain.place.service.EditorPickService;
+import com.umc.todayter.domain.place.service.PlaceDetailService;
 import com.umc.todayter.domain.place.service.PlaceSearchService;
 import com.umc.todayter.domain.place.service.PlaceService;
+import com.umc.todayter.domain.place.service.PlaceShareCardService;
 import com.umc.todayter.domain.place.service.PlaceThumbnailService;
 import com.umc.todayter.global.apiPayload.response.ApiResponse;
 import com.umc.todayter.global.apiPayload.response.SuccessCode;
@@ -24,7 +31,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -42,6 +51,8 @@ public class PlaceController {
     private final PlaceSearchService placeSearchService;
     private final EditorPickService editorPickService;
     private final PlaceThumbnailService placeThumbnailService;
+    private final PlaceDetailService placeDetailService;
+    private final PlaceShareCardService placeShareCardService;
 
     @Operation(summary = "장소 검색 목록 조회", description = "검색어, 지역, 테마, 오행 조건으로 활성 장소 목록을 조회합니다.")
     @SecurityRequirements
@@ -93,6 +104,52 @@ public class PlaceController {
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<PlaceListResponse>> getMyPlaces(@RequestParam(required = false) String type) {
         PlaceListResponse result = placeService.getMyPlaces(type);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.onSuccess(result, SuccessCode.OK));
+    }
+
+    @Operation(summary = "장소 상세 조회", description = "장소 상세 정보와 저장/방문 여부를 조회합니다.")
+    @GetMapping("/{placeId}")
+    public ResponseEntity<ApiResponse<PlaceDetailResponse>> getPlaceDetail(@PathVariable Long placeId) {
+        String contextPathUrl = ServletUriComponentsBuilder
+                .fromCurrentContextPath()
+                .toUriString();
+        PlaceDetailResponse result = placeDetailService.getPlaceDetail(placeId, contextPathUrl);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.onSuccess(result, SuccessCode.OK));
+    }
+
+    @Operation(summary = "장소 즐겨찾기 등록/취소", description = "isSaved=true이면 장소를 저장하고 false이면 저장을 해제합니다.")
+    @PatchMapping("/{placeId}/bookmark")
+    public ResponseEntity<ApiResponse<PlaceBookmarkResponse>> updateBookmark(
+            @PathVariable Long placeId,
+            @Valid @RequestBody PlaceBookmarkRequest request
+    ) {
+        PlaceBookmarkResponse result = placeService.updateBookmark(placeId, request.isSaved());
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.onSuccess(result, SuccessCode.OK));
+    }
+
+    @Operation(summary = "장소 후기 목록 조회", description = "특정 장소에 작성된 후기 전체 목록을 조회합니다. 내가 쓴 후기는 myReview로 별도 반환됩니다.")
+    @GetMapping("/{placeId}/reviews")
+    public ResponseEntity<ApiResponse<PlaceReviewListResponse>> getPlaceReviews(@PathVariable Long placeId) {
+        PlaceReviewListResponse result = placeDetailService.getPlaceReviews(placeId);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.onSuccess(result, SuccessCode.OK));
+    }
+
+    @Operation(summary = "스토리 공유 카드 이미지 조회", description = "장소명, 오행, Google Places 대표 이미지 URL을 조회합니다.")
+    @GetMapping("/{placeId}/share-cards")
+    public ResponseEntity<ApiResponse<PlaceShareCardResponse>> getShareCard(@PathVariable Long placeId) {
+        PlaceShareCardResponse result = placeShareCardService.getShareCard(placeId);
 
         return ResponseEntity
                 .status(HttpStatus.OK)

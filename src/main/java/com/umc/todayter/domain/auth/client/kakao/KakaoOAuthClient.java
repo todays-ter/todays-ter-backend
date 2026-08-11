@@ -65,11 +65,7 @@ public class KakaoOAuthClient {
                     e.contentUTF8()
             );
 
-            if (e.status() == 400) {
-                throw new CustomException(AuthErrorCode.KAKAO_AUTHORIZATION_CODE_INVALID);
-            }
-
-            throw new CustomException(AuthErrorCode.KAKAO_TOKEN_API_FAILED);
+            throw mapKakaoTokenException(e);
         }
     }
 
@@ -103,5 +99,63 @@ public class KakaoOAuthClient {
 
             throw new CustomException(AuthErrorCode.KAKAO_USER_INFO_FAILED);
         }
+    }
+
+    private CustomException mapKakaoTokenException(FeignException e) {
+        String response = e.contentUTF8();
+
+        if (e.status() == 400) {
+
+            if (containsIgnoreCase(
+                    response,
+                    "redirect_uri",
+                    "redirect uri"
+            )) {
+                return new CustomException(AuthErrorCode.KAKAO_REDIRECT_URI_MISMATCH);
+            }
+
+            if (containsIgnoreCase(
+                    response,
+                    "client_secret",
+                    "client secret",
+                    "client_id",
+                    "client id"
+            )) {
+                return new CustomException(AuthErrorCode.KAKAO_CLIENT_AUTH_FAILED);
+            }
+
+            if (containsIgnoreCase(
+                    response,
+                    "authorization code",
+                    "authorization_code",
+                    "invalid_grant"
+            )) {
+                return new CustomException(AuthErrorCode.KAKAO_AUTHORIZATION_CODE_INVALID);
+            }
+
+            return new CustomException(AuthErrorCode.KAKAO_TOKEN_REQUEST_INVALID);
+        }
+
+        if (e.status() == 401) {
+            return new CustomException(AuthErrorCode.KAKAO_CLIENT_AUTH_FAILED);
+        }
+
+        return new CustomException(AuthErrorCode.KAKAO_TOKEN_API_FAILED);
+    }
+
+    private boolean containsIgnoreCase(String source, String... keywords) {
+        if (!StringUtils.hasText(source)) {
+            return false;
+        }
+
+        String normalized = source.toLowerCase();
+
+        for (String keyword : keywords) {
+            if (normalized.contains(keyword.toLowerCase())) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

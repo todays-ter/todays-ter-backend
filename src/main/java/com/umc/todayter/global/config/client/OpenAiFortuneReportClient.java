@@ -32,6 +32,9 @@ public class OpenAiFortuneReportClient {
         if (!StringUtils.hasText(properties.apiKey())) {
             throw new FortuneReportGenerationException("OPENAI_API_KEY_MISSING", "AI 연동 설정을 확인해 주세요.");
         }
+        if (!StringUtils.hasText(properties.model())) {
+            throw new FortuneReportGenerationException("OPENAI_MODEL_MISSING", "AI 연동 설정을 확인해 주세요.");
+        }
 
         Map<String, Object> request = Map.of(
                 "model", properties.model(),
@@ -56,28 +59,19 @@ public class OpenAiFortuneReportClient {
             throw e;
         } catch (RestClientResponseException e) {
             log.warn(
-                    "OpenAI API 요청 실패. status={}, response={}",
-                    e.getStatusCode(),
-                    abbreviate(e.getResponseBodyAsString(), 1_000)
+                    "OpenAI API 요청 실패. status={}",
+                    e.getStatusCode()
             );
             throw new FortuneReportGenerationException(
                     "OPENAI_API_FAILED",
-                    "AI 리포트를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-                    e
+                    "AI 리포트를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요."
             );
         } catch (RestClientException e) {
-            log.warn("OpenAI API 통신 실패: {}", e.getMessage());
+            log.warn("OpenAI API 통신 실패. exception={}", e.getClass().getSimpleName());
             throw new FortuneReportGenerationException(
-                    "OPENAI_API_FAILED", "AI 리포트를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.", e
+                    "OPENAI_API_FAILED", "AI 리포트를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요."
             );
         }
-    }
-
-    private String abbreviate(String value, int maxLength) {
-        if (value == null || value.length() <= maxLength) {
-            return value;
-        }
-        return value.substring(0, maxLength) + "...";
     }
 
     private String extractOutputText(JsonNode response) {

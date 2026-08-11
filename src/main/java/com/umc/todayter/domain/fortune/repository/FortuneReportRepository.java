@@ -14,9 +14,13 @@ import java.util.List;
 public interface FortuneReportRepository extends JpaRepository<FortuneReport, Long> {
     Optional<FortuneReport> findFirstByMemberIdAndStatusOrderByIdDesc(Long memberId, FortuneReportStatus status);
     Optional<FortuneReport> findFirstByGuestSessionIdAndStatusOrderByIdDesc(Long guestSessionId, FortuneReportStatus status);
+    Optional<FortuneReport> findFirstByMemberIdOrderByCreatedAtDescIdDesc(Long memberId);
+    Optional<FortuneReport> findFirstByGuestSessionIdOrderByCreatedAtDescIdDesc(Long guestSessionId);
 
     Optional<FortuneReport> findByIdAndMemberId(Long id, Long memberId);
     Optional<FortuneReport> findByIdAndGuestSessionId(Long id, Long guestSessionId);
+    Optional<FortuneReport> findByShareToken(String shareToken);
+    boolean existsByShareToken(String shareToken);
     List<FortuneReport> findAllByGuestSessionId(Long guestSessionId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

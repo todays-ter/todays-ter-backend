@@ -1,4 +1,4 @@
-package com.umc.todayter.domain.fortune.service;
+package com.umc.todayter.domain.fortune.service.provider;
 
 import tools.jackson.databind.JsonNode;
 import com.umc.todayter.global.config.ablecityProperties.OpenAiReportProperties;

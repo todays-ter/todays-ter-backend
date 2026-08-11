@@ -1,5 +1,7 @@
-package com.umc.todayter.domain.fortune.service;
+package com.umc.todayter.domain.fortune.service.worker;
 
+import com.umc.todayter.domain.fortune.service.FortuneReportProgressService;
+import com.umc.todayter.domain.fortune.service.provider.FortuneReportPromptProvider;
 import tools.jackson.databind.JsonNode;
 import com.umc.todayter.global.config.client.OpenAiFortuneReportClient;
 import com.umc.todayter.global.config.client.AblecityManseClient;

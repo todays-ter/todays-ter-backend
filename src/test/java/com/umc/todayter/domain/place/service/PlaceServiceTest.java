@@ -153,6 +153,7 @@ class PlaceServiceTest {
         assertThat(response.places().get(0).categories()).containsExactly("관계", "일·커리어");
         assertThat(response.places().get(0).element()).isEqualTo("화");
         assertThat(response.places().get(0).thumbnailUrl()).isEqualTo("/places/%d/thumbnail".formatted(place.getId()));
+        assertThat(response.places().get(0).recordId()).isNull();
         verify(savedPlaceRepository).findAllByMemberIdOrderByCreatedAtDesc(1L);
     }
 
@@ -184,6 +185,7 @@ class PlaceServiceTest {
 
         assertThat(response.places()).hasSize(1);
         assertThat(response.places().get(0).placeId()).isEqualTo(place.getId());
+        assertThat(response.places().get(0).recordId()).isEqualTo(20L);
         verify(visitRecordRepository).findLatestPerPlaceByMemberId(1L);
     }
 
@@ -234,6 +236,7 @@ class PlaceServiceTest {
 
     private VisitRecord visitRecord(Member member, Place place) {
         VisitRecord visitRecord = VisitRecord.create(member, place, RecordType.RECORD, 4, "좋았어요");
+        ReflectionTestUtils.setField(visitRecord, "id", 20L);
         ReflectionTestUtils.setField(visitRecord, "createdAt", LocalDateTime.of(2026, 6, 28, 10, 0));
         return visitRecord;
     }

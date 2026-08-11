@@ -1,6 +1,7 @@
 package com.umc.todayter.domain.fortune.service;
 
 import com.umc.todayter.domain.fortune.enums.FiveElement;
+import com.umc.todayter.domain.fortune.service.parser.FortuneReportResultParser;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
 
@@ -102,6 +103,8 @@ class FortuneReportResultParserTest {
         assertThat(general.contentBlocks()).isEmpty();
         assertThat(general.flowAnalysis()).extracting("label")
                 .containsExactly("감정 흐름", "행동 스타일");
+        assertThat(general.keyPoints()).extracting("text")
+                .containsExactly("뛰어난 직관력");
 
         var love = result.details().get(1);
         assertThat(love.primaryElements()).isEmpty();

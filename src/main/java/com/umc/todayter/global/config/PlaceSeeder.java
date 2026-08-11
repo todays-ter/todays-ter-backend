@@ -12,6 +12,8 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -32,12 +34,14 @@ public class PlaceSeeder implements ApplicationRunner {
     private final PlaceRepository placeRepository;
 
     @Override
+    @Transactional
     public void run(ApplicationArguments args) throws IOException {
+        List<Place> places = readSeedPlaces();
         if (placeRepository.count() > 0) {
+            syncExistingPlaces(places);
             return;
         }
 
-        List<Place> places = readSeedPlaces();
         try {
             placeRepository.saveAll(places);
         } catch (DataIntegrityViolationException e) {
@@ -46,6 +50,19 @@ public class PlaceSeeder implements ApplicationRunner {
             // 나머지는 여기서 조용히 스킵한다 (앱 기동 자체를 실패시키지 않음).
             log.warn("장소 초기 데이터가 다른 인스턴스에 의해 이미 시딩되어 스킵합니다.", e);
         }
+    }
+
+    private void syncExistingPlaces(List<Place> seedPlaces) {
+        seedPlaces.stream()
+                .forEach(seedPlace -> placeRepository.findByName(seedPlace.getName())
+                        .ifPresent(existingPlace -> {
+                            if (StringUtils.hasText(seedPlace.getMapUrl())) {
+                                existingPlace.updateMapUrl(seedPlace.getMapUrl());
+                            }
+                            if (StringUtils.hasText(seedPlace.getGooglePlaceId())) {
+                                existingPlace.updateGooglePlaceId(seedPlace.getGooglePlaceId());
+                            }
+                        }));
     }
 
     private List<Place> readSeedPlaces() throws IOException {
@@ -85,7 +102,7 @@ public class PlaceSeeder implements ApplicationRunner {
     private Place toPlace(String[] f) {
         // name,address,latitude,longitude,elementType,terrainType,
         // loveScore,relationshipScore,careerScore,studyScore,restScore,transitionScore,
-        // themeType,summary,description,editorPick,active
+        // themeType,summary,description,editorPick,active,mapUrl,googlePlaceId
         return Place.builder()
                 .name(f[0])
                 .address(f[1])
@@ -104,6 +121,8 @@ public class PlaceSeeder implements ApplicationRunner {
                 .description(f[14])
                 .editorPick(Boolean.parseBoolean(f[15]))
                 .active(Boolean.parseBoolean(f[16]))
+                .mapUrl(f.length > 17 && !f[17].isBlank() ? f[17] : null)
+                .googlePlaceId(f.length > 18 && !f[18].isBlank() ? f[18] : null)
                 .regionCode(RegionCode.SEOUL)
                 .averageRating(0.0)
                 .reviewCount(0)
