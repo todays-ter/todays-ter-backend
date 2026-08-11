@@ -87,6 +87,7 @@ class PlaceDetailServiceTest {
         assertThat(response.hashtags()).containsExactly("하천");
         assertThat(response.description().question()).isEqualTo("이 터의 특징은 무엇인가요?");
         assertThat(response.description().answer()).contains("수(水)");
+        assertThat(response.mapUrl()).isEqualTo("https://map.example.com/places/1");
         assertThat(response.reviewCount()).isEqualTo(9L);
         assertThat(response.isSaved()).isTrue();
         assertThat(response.isVisited()).isTrue();
@@ -105,6 +106,20 @@ class PlaceDetailServiceTest {
         assertThat(response.imageUrl()).isNull();
         assertThat(response.isSaved()).isFalse();
         assertThat(response.isVisited()).isFalse();
+    }
+
+    @Test
+    void getPlaceDetail_guestWithoutAuthentication_returnsSavedAndVisitedFalse() {
+        SecurityContextHolder.clearContext();
+        Place place = place(ElementType.WATER, "https://google-place-id");
+        when(placeRepository.findByIdAndActiveTrue(1L)).thenReturn(Optional.of(place));
+        when(visitRecordRepository.countByPlaceIdAndType(1L, RecordType.REVIEW)).thenReturn(9L);
+
+        PlaceDetailResponse response = placeDetailService.getPlaceDetail(1L, "http://localhost");
+
+        assertThat(response.isSaved()).isFalse();
+        assertThat(response.isVisited()).isFalse();
+        verify(savedPlaceRepository, org.mockito.Mockito.never()).existsByMemberIdAndPlaceId(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -213,6 +228,25 @@ class PlaceDetailServiceTest {
     }
 
     @Test
+    void getPlaceReviews_guestWithoutAuthentication_returnsNoMyReview() {
+        SecurityContextHolder.clearContext();
+        Place place = place(ElementType.WATER, null);
+        when(placeRepository.findByIdAndActiveTrue(1L)).thenReturn(Optional.of(place));
+
+        Member otherMember = member(2L, "리뷰어");
+        VisitRecord review = visitRecord(10L, otherMember, place);
+        when(visitRecordRepository.findByPlaceIdAndTypeOrderByCreatedAtDesc(1L, RecordType.REVIEW))
+                .thenReturn(List.of(review));
+        when(visitRecordImageRepository.findByVisitRecordIdInOrderBySortOrderAsc(anyList()))
+                .thenReturn(List.of());
+
+        PlaceReviewListResponse response = placeDetailService.getPlaceReviews(1L);
+
+        assertThat(response.myReview()).isNull();
+        assertThat(response.reviews()).hasSize(1);
+    }
+
+    @Test
     void getPlaceReviews_placeNotFound_throwsPlaceNotFound() {
         when(placeRepository.findByIdAndActiveTrue(1L)).thenReturn(Optional.empty());
 
@@ -243,6 +277,7 @@ class PlaceDetailServiceTest {
                 .regionCode(RegionCode.SEOUL)
                 .latitude(37.5665)
                 .longitude(126.9780)
+                .mapUrl("https://map.example.com/places/1")
                 .elementType(elementType)
                 .themeType(ThemeType.HEALTH)
                 .averageRating(0.0)

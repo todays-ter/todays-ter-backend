@@ -34,18 +34,18 @@ public class PlaceDetailService {
 
     public PlaceDetailResponse getPlaceDetail(Long placeId, String contextPathUrl) {
         Place place = findActivePlace(placeId);
-        Long memberId = SecurityUtil.getCurrentMemberId();
+        Long memberId = SecurityUtil.getCurrentMemberIdOrNull();
 
         long reviewCount = visitRecordRepository.countByPlaceIdAndType(placeId, RecordType.REVIEW);
-        boolean isSaved = savedPlaceRepository.existsByMemberIdAndPlaceId(memberId, placeId);
-        boolean isVisited = visitRecordRepository.existsByMemberIdAndPlaceId(memberId, placeId);
+        boolean isSaved = memberId != null && savedPlaceRepository.existsByMemberIdAndPlaceId(memberId, placeId);
+        boolean isVisited = memberId != null && visitRecordRepository.existsByMemberIdAndPlaceId(memberId, placeId);
 
         return PlaceDetailResponse.from(place, contextPathUrl, reviewCount, isSaved, isVisited);
     }
 
     public PlaceReviewListResponse getPlaceReviews(Long placeId) {
         findActivePlace(placeId);
-        Long memberId = SecurityUtil.getCurrentMemberId();
+        Long memberId = SecurityUtil.getCurrentMemberIdOrNull();
 
         List<VisitRecord> reviews = visitRecordRepository.findByPlaceIdAndTypeOrderByCreatedAtDesc(placeId, RecordType.REVIEW);
 

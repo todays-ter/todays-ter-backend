@@ -67,8 +67,8 @@ class PlaceRecommendationSnapshotServiceTest {
                 "cached reason",
                 "action"
         );
-        when(snapshotRepository.findByFortuneReportIdAndPlaceIdAndRecommendationDateAndConcernKey(
-                99L, 1L, LocalDate.of(2026, 8, 3), "NONE"
+        when(snapshotRepository.findFirstByFortuneReportIdAndPlaceIdAndConcernKeyOrderByIdDesc(
+                99L, 1L, "NONE"
         )).thenReturn(Optional.of(cached));
 
         PlaceRecommendationSnapshot result = service().getOrCreate(match, place);
@@ -81,8 +81,8 @@ class PlaceRecommendationSnapshotServiceTest {
     void getOrCreateWithMatchCreatesSnapshotUsingProvidedScoreAndReportId() {
         Place place = place(1L);
         RecommendationMatchContext match = match(99L);
-        when(snapshotRepository.findByFortuneReportIdAndPlaceIdAndRecommendationDateAndConcernKey(
-                99L, 1L, LocalDate.of(2026, 8, 3), "NONE"
+        when(snapshotRepository.findFirstByFortuneReportIdAndPlaceIdAndConcernKeyOrderByIdDesc(
+                99L, 1L, "NONE"
         )).thenReturn(Optional.empty());
         when(promptProvider.create(match, place)).thenReturn("prompt");
         when(openAiClient.generate("prompt")).thenReturn("ai-output");
