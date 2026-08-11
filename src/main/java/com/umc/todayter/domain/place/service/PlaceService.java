@@ -83,7 +83,7 @@ public class PlaceService {
         return new PlaceListResponse(places);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public RecommendationPlaceDetailResponse getRecommendedPlaceDetail(
             Long placeId,
             String contextPathUrl,
