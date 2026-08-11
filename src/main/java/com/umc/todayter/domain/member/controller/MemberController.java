@@ -1,5 +1,6 @@
 package com.umc.todayter.domain.member.controller;
 
+import com.umc.todayter.domain.member.dto.request.MemberConcernUpdateRequest;
 import com.umc.todayter.domain.member.dto.request.MemberSajuUpdateRequest;
 import com.umc.todayter.domain.member.dto.request.MemberWithdrawRequest;
 import com.umc.todayter.domain.member.dto.response.MemberConcernResponse;
@@ -88,6 +89,23 @@ public class MemberController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(ApiResponse.onSuccess(result, MemberSuccessCode.CONCERNS_RETRIEVED));
+    }
+
+    @Operation(
+            summary = "회원 고민 유형 수정",
+            description = "현재 로그인한 회원의 고민 유형을 수정합니다."
+    )
+    @PutMapping("/me/concerns")
+    public ResponseEntity<ApiResponse<MemberConcernResponse>> updateConcerns(
+            @Valid @RequestBody MemberConcernUpdateRequest request
+    ) {
+        Long memberId = SecurityUtil.getCurrentMemberId();
+
+        MemberConcernResponse result = memberConcernService.updateConcerns(memberId, request);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.onSuccess(result, MemberSuccessCode.CONCERNS_UPDATED));
     }
 
     @Operation(
