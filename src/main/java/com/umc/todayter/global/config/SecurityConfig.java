@@ -83,6 +83,11 @@ public class SecurityConfig {
                         ).authenticated()
 
                         .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/guest-sessions/convert"
+                        ).authenticated()
+
+                        .requestMatchers(
                                 HttpMethod.GET,
                                 "/places",
                                 "/places/editor-picks",
