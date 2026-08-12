@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
-@Tag(name = "알림 API", description = "알림 목록 조회 및 읽음 처리 관련 API")
+@Tag(name = "Notification", description = "알림 목록 조회 및 읽음 처리 관련 API")
 @RestController
 @RequestMapping("/notifications")
 @RequiredArgsConstructor

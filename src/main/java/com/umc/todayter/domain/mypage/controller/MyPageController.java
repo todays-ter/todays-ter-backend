@@ -10,7 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "마이페이지 API", description = "마이페이지 알림, 권한, 약관 설정 관련 API")
+@Tag(name = "Mypage", description = "마이페이지 알림, 권한, 약관 설정 관련 API")
 @RestController
 @RequestMapping("/mypage")
 @RequiredArgsConstructor
