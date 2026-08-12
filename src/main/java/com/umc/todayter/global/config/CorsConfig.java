@@ -32,9 +32,8 @@ public class CorsConfig {
                 "http://localhost:3000",
                 "http://localhost:5173",
                 "https://todays-ter-frontend.vercel.app",
-                "https://today-ter.kr",
-                "https://todays-ter-frontend-*.vercel.app"
-
+                "https://todays-ter-frontend-*.vercel.app",
+                "https://today-ter.kr"
         ));
 
         // 프론트엔드에서 사용할 HTTP 메서드 허용
