@@ -62,6 +62,9 @@ class RecommendedPlaceServiceTest {
     @Mock
     private PlaceRecommendationSnapshotService snapshotService;
 
+    @Mock
+    private com.umc.todayter.domain.record.repository.VisitRecordRepository visitRecordRepository;
+
     @Test
     void memberReturnsTopThreeFromAllActivePlaces() {
         FortuneReport report = report(99L, 7L, FortuneReportStatus.COMPLETED, "content");
@@ -143,6 +146,35 @@ class RecommendedPlaceServiceTest {
                 org.mockito.ArgumentMatchers.any(RecommendationMatchContext.class),
                 org.mockito.ArgumentMatchers.eq(second)
         );
+    }
+
+    @Test
+    void averageRatingUsesReviewAverageWhenPresentOtherwiseFallsBackToPlaceDefault() {
+        FortuneReport report = report(99L, 7L, FortuneReportStatus.COMPLETED, "content");
+        RecommendationScoringContext scoringContext = scoringContext(report.getId());
+        Place reviewed = place(1L, "reviewed", ElementType.FIRE, 4.0, "google");
+        Place unreviewed = place(2L, "unreviewed", ElementType.WOOD, 3.5, "google");
+
+        when(memberRepository.findById(1L)).thenReturn(Optional.of(Member.create("member")));
+        when(fortuneReportRepository.findFirstByMemberIdOrderByCreatedAtDescIdDesc(1L))
+                .thenReturn(Optional.of(report));
+        when(recommendationMatchingService.prepare(report)).thenReturn(Optional.of(scoringContext));
+        when(placeRepository.findAllByActiveTrue()).thenReturn(List.of(reviewed, unreviewed));
+        score(scoringContext, reviewed, 80);
+        score(scoringContext, unreviewed, 70);
+        snapshot(reviewed, "reviewed reason");
+        snapshot(unreviewed, "unreviewed reason");
+        when(visitRecordRepository.findAverageRatingByPlaceId(1L)).thenReturn(4.8);
+        when(visitRecordRepository.findAverageRatingByPlaceId(2L)).thenReturn(null);
+
+        HomeRecommendedPlacesResponse response = service().getRecommendedPlaces(
+                CurrentUserContext.forMember(1L),
+                HomeRecommendedPlaceQuery.of(null, null),
+                "http://localhost:8080"
+        );
+
+        assertThat(response.recommendations().get(0).averageRating()).isEqualTo(4.8);
+        assertThat(response.recommendations().get(1).averageRating()).isEqualTo(3.5);
     }
 
     @Test
@@ -264,7 +296,8 @@ class RecommendedPlaceServiceTest {
                 recommendationMatchingService,
                 snapshotService,
                 new PlaceDistanceCalculator(),
-                new PlaceThumbnailUrlFactory()
+                new PlaceThumbnailUrlFactory(),
+                visitRecordRepository
         );
     }
 

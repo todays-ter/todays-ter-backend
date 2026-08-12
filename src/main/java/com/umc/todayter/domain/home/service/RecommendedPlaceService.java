@@ -20,6 +20,7 @@ import com.umc.todayter.domain.place.service.PlaceDistanceCalculator;
 import com.umc.todayter.domain.place.service.PlaceRecommendationSnapshotService;
 import com.umc.todayter.domain.place.service.PlaceThumbnailUrlFactory;
 import com.umc.todayter.domain.place.service.RecommendationMatchingService;
+import com.umc.todayter.domain.record.repository.VisitRecordRepository;
 import com.umc.todayter.global.apiPayload.exception.CustomException;
 import com.umc.todayter.global.security.context.CurrentUserContext;
 import com.umc.todayter.global.security.context.CurrentUserType;
@@ -45,6 +46,7 @@ public class RecommendedPlaceService {
     private final PlaceRecommendationSnapshotService snapshotService;
     private final PlaceDistanceCalculator distanceCalculator;
     private final PlaceThumbnailUrlFactory thumbnailUrlFactory;
+    private final VisitRecordRepository visitRecordRepository;
 
     public HomeRecommendedPlacesResponse getRecommendedPlaces(
             CurrentUserContext context,
@@ -145,8 +147,14 @@ public class RecommendedPlaceService {
                 candidate.matchPercentage(),
                 snapshot.getWhyItMatches(),
                 distanceCalculator.distanceKm(query.latitude(), query.longitude(), place),
-                place.getAverageRating()
+                averageRating(place)
         );
+    }
+
+    // 실제 후기 평점 평균을 우선 사용하고, 아직 후기가 없으면 에디터가 세팅해둔 기본 평점으로 대체한다.
+    private Double averageRating(Place place) {
+        Double reviewAverage = visitRecordRepository.findAverageRatingByPlaceId(place.getId());
+        return reviewAverage != null ? reviewAverage : place.getAverageRating();
     }
 
     private record RankedPlaceCandidate(
