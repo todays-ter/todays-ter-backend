@@ -128,6 +128,16 @@ public class FortuneReportService {
         return FortuneReportStatusResponse.from(report, properties.maxRetries());
     }
 
+    public FortuneReportSummaryResponse getMyLatestReport(Long memberId) {
+        memberService.getActiveMember(memberId);
+
+        FortuneReport report = fortuneReportRepository.findFirstByMemberIdOrderByIdDesc(memberId)
+                .orElseThrow(() -> new CustomException(FortuneReportErrorCode.REPORT_NOT_FOUND));
+
+        validateCompletedReport(report);
+        return toSummaryResponse(report);
+    }
+
     public FortuneReportSummaryResponse getSummary(Long memberId, String guestId, Long reportId) {
         FortuneReport report = getCompletedOwnedReport(memberId, guestId, reportId);
         return toSummaryResponse(report);

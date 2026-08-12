@@ -14,4 +14,13 @@ public enum RegionCode {
 
     private final String displayName;
     private final int displayOrder;
+
+    public static RegionCode fromSeedValue(String value) {
+        for (RegionCode regionCode : values()) {
+            if (regionCode.name().equals(value) || regionCode.displayName.equals(value)) {
+                return regionCode;
+            }
+        }
+        throw new IllegalArgumentException("지원하지 않는 지역 코드입니다: " + value);
+    }
 }
