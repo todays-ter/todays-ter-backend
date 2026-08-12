@@ -40,7 +40,7 @@ public class PlaceSeeder implements ApplicationRunner {
     public void run(ApplicationArguments args) throws IOException {
         List<Place> places = readSeedPlaces();
         if (placeRepository.count() > 0) {
-            syncExistingPlaces(places);
+            syncSeedPlaces(places);
             return;
         }
 
@@ -54,17 +54,29 @@ public class PlaceSeeder implements ApplicationRunner {
         }
     }
 
-    private void syncExistingPlaces(List<Place> seedPlaces) {
-        seedPlaces.stream()
-                .forEach(seedPlace -> placeRepository.findByName(seedPlace.getName())
-                        .ifPresent(existingPlace -> {
-                            if (StringUtils.hasText(seedPlace.getMapUrl())) {
-                                existingPlace.updateMapUrl(seedPlace.getMapUrl());
-                            }
-                            if (StringUtils.hasText(seedPlace.getGooglePlaceId())) {
-                                existingPlace.updateGooglePlaceId(seedPlace.getGooglePlaceId());
-                            }
-                        }));
+    private void syncSeedPlaces(List<Place> seedPlaces) {
+        seedPlaces.forEach(seedPlace -> placeRepository.findByName(seedPlace.getName())
+                .ifPresentOrElse(
+                        existingPlace -> syncExistingPlace(seedPlace, existingPlace),
+                        () -> saveNewPlace(seedPlace)
+                ));
+    }
+
+    private void syncExistingPlace(Place seedPlace, Place existingPlace) {
+        if (StringUtils.hasText(seedPlace.getMapUrl())) {
+            existingPlace.updateMapUrl(seedPlace.getMapUrl());
+        }
+        if (StringUtils.hasText(seedPlace.getGooglePlaceId())) {
+            existingPlace.updateGooglePlaceId(seedPlace.getGooglePlaceId());
+        }
+    }
+
+    private void saveNewPlace(Place seedPlace) {
+        try {
+            placeRepository.save(seedPlace);
+        } catch (DataIntegrityViolationException e) {
+            log.warn("Place seed was already inserted by another instance. name={}", seedPlace.getName(), e);
+        }
     }
 
     private List<Place> readSeedPlaces() throws IOException {
