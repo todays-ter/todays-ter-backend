@@ -5,6 +5,7 @@ import com.umc.todayter.domain.place.enums.ElementType;
 import org.springframework.util.StringUtils;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
@@ -18,39 +19,30 @@ public record PlaceDetailResponse(
         String address,
         Double latitude,
         Double longitude,
+        String mapUrl,
         Long reviewCount,
         Boolean isSaved,
         Boolean isVisited
 ) {
-    private static final Map<ElementType, PlaceDescription> DESCRIPTIONS_BY_ELEMENT = Map.of(
-            ElementType.FIRE, new PlaceDescription(
-                    "이 터의 특징은 무엇인가요?",
-                    "화(火) 기운이 강해 열정과 추진력을 북돋우고 새로운 시작에 좋은 기운을 더해줘요."
-            ),
-            ElementType.EARTH, new PlaceDescription(
-                    "이 터의 특징은 무엇인가요?",
-                    "토(土) 기운이 강해 안정감과 중심을 잡아주고 마음을 편안하게 다잡기에 좋아요."
-            ),
-            ElementType.WOOD, new PlaceDescription(
-                    "이 터의 특징은 무엇인가요?",
-                    "목(木) 기운이 강해 성장과 확장의 에너지를 주고 새로운 관계를 시작하기에 좋아요."
-            ),
-            ElementType.WATER, new PlaceDescription(
-                    "이 터의 특징은 무엇인가요?",
-                    "수(水) 기운이 강해 감정 정리와 회복에 좋고 오늘의 흐름과 잘 맞아요."
-            ),
-            ElementType.METAL, new PlaceDescription(
-                    "이 터의 특징은 무엇인가요?",
-                    "금(金) 기운이 강해 결단력과 정리의 힘을 주고 마무리가 필요한 일에 좋아요."
-            )
-    );
+    private static final String THUMBNAIL_PATH = "/places/{placeId}/thumbnail";
+    private static final String DESCRIPTION_QUESTION = "이 터의 특징은 무엇인가요?";
+
+    private static final Map<ElementType, String> ELEMENT_DESCRIPTIONS = new EnumMap<>(ElementType.class);
+
+    static {
+        ELEMENT_DESCRIPTIONS.put(ElementType.FIRE, "화(火) 기운이 강해 열정과 추진력이 필요한 새로운 시작에 좋고 오늘의 흐름과 잘 맞아요.");
+        ELEMENT_DESCRIPTIONS.put(ElementType.EARTH, "토(土) 기운이 강해 안정감과 중심을 잡는 데 좋고 오늘의 흐름과 잘 맞아요.");
+        ELEMENT_DESCRIPTIONS.put(ElementType.WOOD, "목(木) 기운이 강해 성장과 새로운 관계를 넓히는 데 좋고 오늘의 흐름과 잘 맞아요.");
+        ELEMENT_DESCRIPTIONS.put(ElementType.WATER, "수(水) 기운이 강해 감정 정리와 회복에 좋고 오늘의 흐름과 잘 맞아요.");
+        ELEMENT_DESCRIPTIONS.put(ElementType.METAL, "금(金) 기운이 강해 결단과 정리에 좋고 오늘의 흐름과 잘 맞아요.");
+    }
 
     public static PlaceDetailResponse from(
             Place place,
-            Long reviewCount,
+            String contextPathUrl,
+            long reviewCount,
             boolean isSaved,
-            boolean isVisited,
-            String contextPathUrl
+            boolean isVisited
     ) {
         return new PlaceDetailResponse(
                 place.getId(),
@@ -58,10 +50,11 @@ public record PlaceDetailResponse(
                 thumbnailUrl(place, contextPathUrl),
                 place.getElementType().getDisplayName(),
                 List.of(place.getTerrainType()),
-                DESCRIPTIONS_BY_ELEMENT.get(place.getElementType()),
+                description(place.getElementType()),
                 place.getAddress(),
                 place.getLatitude(),
                 place.getLongitude(),
+                place.getMapUrl(),
                 reviewCount,
                 isSaved,
                 isVisited
@@ -72,10 +65,15 @@ public record PlaceDetailResponse(
         if (!StringUtils.hasText(place.getGooglePlaceId())) {
             return null;
         }
+
         return UriComponentsBuilder.fromUriString(contextPathUrl)
-                .path("/places/{placeId}/thumbnail")
+                .path(THUMBNAIL_PATH)
                 .build(place.getId())
                 .toString();
+    }
+
+    private static PlaceDescription description(ElementType elementType) {
+        return new PlaceDescription(DESCRIPTION_QUESTION, ELEMENT_DESCRIPTIONS.get(elementType));
     }
 
     public record PlaceDescription(String question, String answer) {

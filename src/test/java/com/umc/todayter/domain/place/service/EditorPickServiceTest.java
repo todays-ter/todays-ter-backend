@@ -28,7 +28,7 @@ class EditorPickServiceTest {
 
     @Test
     void getEditorPicks_usesFixedPageRequestAndSort() {
-        EditorPickService editorPickService = new EditorPickService(placeRepository);
+        EditorPickService editorPickService = service();
         when(placeRepository.findByActiveTrueAndEditorPickTrue(org.mockito.ArgumentMatchers.any(Pageable.class)))
                 .thenReturn(List.of());
 
@@ -45,7 +45,7 @@ class EditorPickServiceTest {
 
     @Test
     void getEditorPicks_returnsPlaceCardsWithAbsoluteThumbnailUrl() {
-        EditorPickService editorPickService = new EditorPickService(placeRepository);
+        EditorPickService editorPickService = service();
         Place place = place(1L, "Gyeongbokgung", ElementType.EARTH, ThemeType.WEALTH, 4.7, "google-place-id");
         when(placeRepository.findByActiveTrueAndEditorPickTrue(org.mockito.ArgumentMatchers.any(Pageable.class)))
                 .thenReturn(List.of(place));
@@ -67,7 +67,7 @@ class EditorPickServiceTest {
 
     @Test
     void getEditorPicks_returnsNullThumbnailWhenGooglePlaceIdIsNullOrBlank() {
-        EditorPickService editorPickService = new EditorPickService(placeRepository);
+        EditorPickService editorPickService = service();
         Place nullGooglePlace = place(1L, "null-google", ElementType.FIRE, ThemeType.LOVE, 4.0, null);
         Place emptyGooglePlace = place(2L, "empty-google", ElementType.EARTH, ThemeType.WEALTH, 3.8, "");
         Place blankGooglePlace = place(3L, "blank-google", ElementType.WOOD, ThemeType.HEALTH, 3.5, " ");
@@ -83,7 +83,7 @@ class EditorPickServiceTest {
 
     @Test
     void getEditorPicks_returnsEmptyContent() {
-        EditorPickService editorPickService = new EditorPickService(placeRepository);
+        EditorPickService editorPickService = service();
         when(placeRepository.findByActiveTrueAndEditorPickTrue(org.mockito.ArgumentMatchers.any(Pageable.class)))
                 .thenReturn(List.of());
 
@@ -125,5 +125,9 @@ class EditorPickServiceTest {
                 .build();
         ReflectionTestUtils.setField(place, "id", id);
         return place;
+    }
+
+    private EditorPickService service() {
+        return new EditorPickService(placeRepository, new PlaceThumbnailUrlFactory());
     }
 }

@@ -40,7 +40,7 @@ public class PlaceSeeder implements ApplicationRunner {
     public void run(ApplicationArguments args) throws IOException {
         List<Place> places = readSeedPlaces();
         if (placeRepository.count() > 0) {
-            syncMapUrls(places);
+            syncExistingPlaces(places);
             return;
         }
 
@@ -54,11 +54,17 @@ public class PlaceSeeder implements ApplicationRunner {
         }
     }
 
-    private void syncMapUrls(List<Place> seedPlaces) {
+    private void syncExistingPlaces(List<Place> seedPlaces) {
         seedPlaces.stream()
-                .filter(place -> StringUtils.hasText(place.getMapUrl()))
                 .forEach(seedPlace -> placeRepository.findByName(seedPlace.getName())
-                        .ifPresent(existingPlace -> existingPlace.updateMapUrl(seedPlace.getMapUrl())));
+                        .ifPresent(existingPlace -> {
+                            if (StringUtils.hasText(seedPlace.getMapUrl())) {
+                                existingPlace.updateMapUrl(seedPlace.getMapUrl());
+                            }
+                            if (StringUtils.hasText(seedPlace.getGooglePlaceId())) {
+                                existingPlace.updateGooglePlaceId(seedPlace.getGooglePlaceId());
+                            }
+                        }));
     }
 
     private List<Place> readSeedPlaces() throws IOException {
@@ -127,6 +133,7 @@ public class PlaceSeeder implements ApplicationRunner {
                 .editorPick(Boolean.parseBoolean(field(header, f, "editorPick")))
                 .active(Boolean.parseBoolean(field(header, f, "active")))
                 .mapUrl(optionalField(header, f, "mapUrl"))
+                .googlePlaceId(optionalField(header, f, "googlePlaceId"))
                 .regionCode(RegionCode.valueOf(field(header, f, "regionCode")))
                 .averageRating(0.0)
                 .reviewCount(0)

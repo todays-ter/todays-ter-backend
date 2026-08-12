@@ -37,8 +37,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.lang.reflect.Method;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -241,6 +243,7 @@ class PlaceServiceTest {
         assertThat(response.places().get(0).categories()).containsExactly("관계", "일·커리어");
         assertThat(response.places().get(0).element()).isEqualTo("화");
         assertThat(response.places().get(0).thumbnailUrl()).isEqualTo("/places/%d/thumbnail".formatted(place.getId()));
+        assertThat(response.places().get(0).recordId()).isNull();
         verify(savedPlaceRepository).findAllByMemberIdOrderByCreatedAtDesc(1L);
     }
 
@@ -272,6 +275,7 @@ class PlaceServiceTest {
 
         assertThat(response.places()).hasSize(1);
         assertThat(response.places().get(0).placeId()).isEqualTo(place.getId());
+        assertThat(response.places().get(0).recordId()).isEqualTo(20L);
         verify(visitRecordRepository).findLatestPerPlaceByMemberId(1L);
     }
 
@@ -305,6 +309,20 @@ class PlaceServiceTest {
                 .isEqualTo(MemberErrorCode.MEMBER_NOT_FOUND);
     }
 
+    @Test
+    void getRecommendedPlaceDetail_doesNotWrapSnapshotOpenAiCallInOuterTransaction() throws NoSuchMethodException {
+        Method method = PlaceService.class.getMethod(
+                "getRecommendedPlaceDetail",
+                Long.class,
+                String.class,
+                String.class
+        );
+        Transactional transactional = method.getAnnotation(Transactional.class);
+
+        assertThat(transactional).isNotNull();
+        assertThat(transactional.propagation()).isEqualTo(Propagation.NOT_SUPPORTED);
+    }
+
     private Member member(Long id) {
         Member member = Member.create("nickname" + id);
         ReflectionTestUtils.setField(member, "id", id);
@@ -322,6 +340,7 @@ class PlaceServiceTest {
 
     private VisitRecord visitRecord(Member member, Place place) {
         VisitRecord visitRecord = VisitRecord.create(member, place, RecordType.RECORD, 4, "좋았어요");
+        ReflectionTestUtils.setField(visitRecord, "id", 20L);
         ReflectionTestUtils.setField(visitRecord, "createdAt", LocalDateTime.of(2026, 6, 28, 10, 0));
         return visitRecord;
     }

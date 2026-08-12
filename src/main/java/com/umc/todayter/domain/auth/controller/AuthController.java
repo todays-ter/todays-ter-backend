@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/auth")
 public class AuthController {
 
+    private final GuestCookieUtil guestCookieUtil;
     private final AuthCookieUtil authCookieUtil;
     private final AuthOriginValidator authOriginValidator;
     private final KakaoAuthService kakaoAuthService;
@@ -64,6 +65,9 @@ public class AuthController {
                 tokenResult.refreshToken(),
                 tokenResult.refreshMaxAgeSeconds()
         );
+
+        // 로그인 및 비회원 데이터 이전 완료 후 guest_id 만료
+        guestCookieUtil.clearGuestCookie(response);
 
         KakaoLoginResponse responseBody = new KakaoLoginResponse(
                 result.memberId(),

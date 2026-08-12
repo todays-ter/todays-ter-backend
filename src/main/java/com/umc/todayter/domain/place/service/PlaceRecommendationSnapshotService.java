@@ -6,7 +6,6 @@ import com.umc.todayter.domain.place.dto.internal.RecommendationMatchContext;
 import com.umc.todayter.domain.place.entity.Place;
 import com.umc.todayter.domain.place.entity.PlaceRecommendationSnapshot;
 import com.umc.todayter.domain.place.exception.PlaceErrorCode;
-import com.umc.todayter.domain.place.repository.PlaceRecommendationSnapshotRepository;
 import com.umc.todayter.domain.place.service.provider.PlaceRecommendationAiContentParser;
 import com.umc.todayter.domain.place.service.provider.PlaceRecommendationPromptProvider;
 import com.umc.todayter.global.apiPayload.exception.CustomException;
@@ -15,7 +14,6 @@ import com.umc.todayter.global.security.context.CurrentUserContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDate;
@@ -29,20 +27,18 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PlaceRecommendationSnapshotService {
 
-    private final PlaceRecommendationSnapshotRepository snapshotRepository;
+    private final PlaceRecommendationSnapshotTransactionService transactionService;
     private final RecommendationMatchingService matchingService;
     private final PlaceRecommendationPromptProvider promptProvider;
     private final PlaceRecommendationAiContentParser contentParser;
     private final OpenAiFortuneReportClient openAiClient;
     private final Clock clock;
 
-    @Transactional
     public Optional<PlaceRecommendationSnapshot> getOrCreate(CurrentUserContext userContext, Place place) {
         return matchingService.resolve(userContext, place)
                 .map(match -> getOrCreate(match, place));
     }
 
-    @Transactional
     public PlaceRecommendationSnapshot getOrCreateRequired(CurrentUserContext userContext, Place place) {
         return getOrCreate(userContext, place)
                 .orElseThrow(() -> new CustomException(PlaceErrorCode.PERSONALIZED_RECOMMENDATION_UNAVAILABLE));
@@ -51,7 +47,7 @@ public class PlaceRecommendationSnapshotService {
     public PlaceRecommendationSnapshot enableSharing(PlaceRecommendationSnapshot snapshot) {
         if (snapshot.getShareToken() == null) {
             snapshot.enableSharing(createUniqueShareToken());
-            return snapshotRepository.save(snapshot);
+            return transactionService.saveSnapshot(snapshot);
         }
         return snapshot;
     }
@@ -60,17 +56,16 @@ public class PlaceRecommendationSnapshotService {
         if (shareToken == null || shareToken.length() != 32) {
             throw new CustomException(PlaceErrorCode.SHARED_RECOMMENDATION_NOT_FOUND);
         }
-        return snapshotRepository.findByShareToken(shareToken)
+        return transactionService.findByShareToken(shareToken)
                 .orElseThrow(() -> new CustomException(PlaceErrorCode.SHARED_RECOMMENDATION_NOT_FOUND));
     }
 
-    private PlaceRecommendationSnapshot getOrCreate(RecommendationMatchContext match, Place place) {
+    public PlaceRecommendationSnapshot getOrCreate(RecommendationMatchContext match, Place place) {
         LocalDate today = LocalDate.now(clock);
         String concernKey = concernKey(match.concerns());
-        Optional<PlaceRecommendationSnapshot> cached = snapshotRepository
-                .findFirstByFortuneReportIdAndPlaceIdAndConcernKeyOrderByIdDesc(
-                        match.reportId(), place.getId(), concernKey
-                );
+        Optional<PlaceRecommendationSnapshot> cached = transactionService.findCached(
+                match.reportId(), place.getId(), concernKey
+        );
         if (cached.isPresent()) {
             return cached.get();
         }
@@ -90,12 +85,9 @@ public class PlaceRecommendationSnapshotService {
         );
 
         try {
-            return snapshotRepository.save(snapshot);
+            return transactionService.saveSnapshot(snapshot);
         } catch (DataIntegrityViolationException e) {
-            return snapshotRepository
-                    .findFirstByFortuneReportIdAndPlaceIdAndConcernKeyOrderByIdDesc(
-                            match.reportId(), place.getId(), concernKey
-                    )
+            return transactionService.findCachedAfterSaveConflict(match.reportId(), place.getId(), concernKey)
                     .orElseThrow(() -> e);
         }
     }
@@ -150,7 +142,7 @@ public class PlaceRecommendationSnapshotService {
         String token;
         do {
             token = UUID.randomUUID().toString().replace("-", "");
-        } while (snapshotRepository.existsByShareToken(token));
+        } while (transactionService.existsByShareToken(token));
         return token;
     }
 }
