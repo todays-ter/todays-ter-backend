@@ -3,13 +3,16 @@ package com.umc.todayter.domain.place.service;
 import com.umc.todayter.domain.member.entity.Member;
 import com.umc.todayter.domain.member.exception.MemberErrorCode;
 import com.umc.todayter.domain.member.repository.MemberRepository;
+import com.umc.todayter.domain.member.enums.MemberStatus;
 import com.umc.todayter.domain.place.dto.response.ElementFilterResponse;
 import com.umc.todayter.domain.place.dto.response.ExploreFiltersResponse;
 import com.umc.todayter.domain.place.dto.response.PlaceListResponse;
+import com.umc.todayter.domain.place.dto.response.PlaceBookmarkResponse;
 import com.umc.todayter.domain.place.dto.response.RegionFilterResponse;
 import com.umc.todayter.domain.place.dto.response.ThemeFilterResponse;
 import com.umc.todayter.domain.place.entity.Place;
 import com.umc.todayter.domain.place.entity.SavedPlace;
+import com.umc.todayter.domain.place.entity.PlaceRecommendationSnapshot;
 import com.umc.todayter.domain.place.enums.ElementType;
 import com.umc.todayter.domain.place.enums.RegionCode;
 import com.umc.todayter.domain.place.enums.ThemeType;
@@ -22,6 +25,8 @@ import com.umc.todayter.domain.record.enums.RecordType;
 import com.umc.todayter.domain.record.repository.VisitRecordRepository;
 import com.umc.todayter.global.apiPayload.exception.CustomException;
 import com.umc.todayter.global.security.AuthPrincipal;
+import com.umc.todayter.global.security.context.CurrentUserContext;
+import com.umc.todayter.global.security.context.CurrentUserContextResolver;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,6 +50,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
 
 @ExtendWith(MockitoExtension.class)
 class PlaceServiceTest {
@@ -60,6 +66,12 @@ class PlaceServiceTest {
 
     @Mock
     private MemberRepository memberRepository;
+
+    @Mock
+    private PlaceRecommendationSnapshotService recommendationSnapshotService;
+
+    @Mock
+    private CurrentUserContextResolver currentUserContextResolver;
 
     @InjectMocks
     private PlaceService placeService;
@@ -97,6 +109,81 @@ class PlaceServiceTest {
                         org.assertj.core.groups.Tuple.tuple("ETC", 0L)
                 );
         verify(placeRepository).countActivePlacesGroupByThemeType();
+    }
+
+    @Test
+    void updateBookmark_trueSavesPlaceWhenNotAlreadySaved() {
+        Member member = member(1L);
+        Place place = place(10, 20, 30, 40, 50, 60);
+        when(memberRepository.findByIdAndStatusForUpdate(1L, MemberStatus.ACTIVE)).thenReturn(Optional.of(member));
+        when(placeRepository.findByIdAndActiveTrue(1L)).thenReturn(Optional.of(place));
+        when(savedPlaceRepository.findByMemberIdAndPlaceId(1L, 1L)).thenReturn(Optional.empty());
+        when(savedPlaceRepository.save(any(SavedPlace.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        PlaceBookmarkResponse response = placeService.updateBookmark(1L, true);
+
+        assertThat(response.placeId()).isEqualTo(1L);
+        assertThat(response.isSaved()).isTrue();
+        verify(savedPlaceRepository).save(any(SavedPlace.class));
+    }
+
+    @Test
+    void updateBookmark_falseDeletesSavedPlaceIdempotently() {
+        Member member = member(1L);
+        Place place = place(10, 20, 30, 40, 50, 60);
+        when(memberRepository.findByIdAndStatusForUpdate(1L, MemberStatus.ACTIVE)).thenReturn(Optional.of(member));
+        when(placeRepository.findByIdAndActiveTrue(1L)).thenReturn(Optional.of(place));
+
+        PlaceBookmarkResponse response = placeService.updateBookmark(1L, false);
+
+        assertThat(response.isSaved()).isFalse();
+        verify(savedPlaceRepository).deleteByMemberIdAndPlaceId(1L, 1L);
+    }
+
+    @Test
+    void getRecommendedPlaceDetailReturnsElementCategoriesAndMatchingScore() {
+        Place place = place(20, 22, 18, 28, 30, 28);
+        CurrentUserContext userContext = CurrentUserContext.forMember(1L);
+        when(placeRepository.findByIdAndActiveTrue(1L)).thenReturn(Optional.of(place));
+        when(savedPlaceRepository.existsByMemberIdAndPlaceId(1L, 1L)).thenReturn(true);
+        when(currentUserContextResolver.resolve(null)).thenReturn(userContext);
+        PlaceRecommendationSnapshot snapshot = PlaceRecommendationSnapshot.create(
+                10L,
+                1L,
+                java.time.LocalDate.of(2026, 8, 3),
+                "HEALTH",
+                87,
+                List.of("주 오행 수", "오늘 흐름 상생", "휴식·회복"),
+                "이 장소가 오늘의 흐름과 잘 맞아요.",
+                "물길을 따라 가볍게 걸어보세요."
+        );
+        when(recommendationSnapshotService.getOrCreate(userContext, place)).thenReturn(Optional.of(snapshot));
+
+        var response = placeService.getRecommendedPlaceDetail(1L, "https://api.example.com", null);
+
+        assertThat(response.primaryElement().code()).isEqualTo(place.getElementType().name());
+        assertThat(response.primaryElement().name()).isEqualTo(place.getElementType().getDisplayName());
+        assertThat(response.topCategories()).containsExactly("휴식·회복");
+        assertThat(response.matchingScore()).isEqualTo(87);
+        assertThat(response.whyItMatches()).isEqualTo("이 장소가 오늘의 흐름과 잘 맞아요.");
+        assertThat(response.actionSuggestion()).isEqualTo("물길을 따라 가볍게 걸어보세요.");
+        assertThat(response.isSaved()).isTrue();
+    }
+
+    @Test
+    void snapshotWritingMethodsUseWritableTransactions() throws NoSuchMethodException {
+        Transactional detailTransaction = PlaceService.class.getDeclaredMethod(
+                "getRecommendedPlaceDetail", Long.class, String.class, String.class
+        ).getAnnotation(Transactional.class);
+        Transactional shareTransaction = PlaceService.class.getDeclaredMethod(
+                "createRecommendationShareToken", Long.class, String.class
+        ).getAnnotation(Transactional.class);
+
+        assertThat(detailTransaction).isNotNull();
+        assertThat(detailTransaction.readOnly()).isFalse();
+        assertThat(shareTransaction).isNotNull();
+        assertThat(shareTransaction.readOnly()).isFalse();
     }
 
     @Test

@@ -9,7 +9,8 @@ import org.springframework.http.HttpStatus;
 @AllArgsConstructor
 public enum GuestSuccessCode implements BaseCode {
 
-    GUEST_SESSION_STATUS_RETRIEVED(HttpStatus.OK, "GUEST200", "게스트 세션 상태를 조회했습니다.")
+    GUEST_SESSION_STATUS_RETRIEVED(HttpStatus.OK, "GUEST200_1", "게스트 세션 상태를 조회했습니다."),
+    GUEST_SESSION_CONVERTED(HttpStatus.OK, "GUEST200_2", "게스트 온보딩 정보가 회원 계정으로 이전되었습니다.")
     ;
 
     private final HttpStatus httpStatus;

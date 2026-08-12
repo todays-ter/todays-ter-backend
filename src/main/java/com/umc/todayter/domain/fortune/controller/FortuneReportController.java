@@ -53,6 +53,15 @@ public class FortuneReportController {
         return ResponseEntity.ok(ApiResponse.onSuccess(result, SuccessCode.OK));
     }
 
+    @Operation(summary = "마이페이지에서 내 사주 리포트 조회", description = "현재 로그인한 회원의 최신 완료 리포트 기본 요약을 조회합니다.")
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<FortuneReportSummaryResponse>> getMyLatestReport() {
+        FortuneReportSummaryResponse result = fortuneReportService.getMyLatestReport(
+                SecurityUtil.getCurrentMemberId()
+        );
+        return ResponseEntity.ok(ApiResponse.onSuccess(result, SuccessCode.OK));
+    }
+
     @Operation(summary = "기본 리포트 조회", description = "완료된 리포트의 기본 요약과 오행 분포를 조회합니다.")
     @SecurityRequirements
     @GetMapping("/{reportId}")
