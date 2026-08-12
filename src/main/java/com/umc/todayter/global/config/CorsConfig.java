@@ -32,7 +32,7 @@ public class CorsConfig {
                 "http://localhost:3000",
                 "http://localhost:5173",
                 "https://todays-ter-frontend.vercel.app",
-                "https://today-ter.kr"
+                "https://today-ter.kr",
                 "https://todays-ter-frontend-*.vercel.app"
 
         ));
