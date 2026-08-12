@@ -147,14 +147,8 @@ public class RecommendedPlaceService {
                 candidate.matchPercentage(),
                 snapshot.getWhyItMatches(),
                 distanceCalculator.distanceKm(query.latitude(), query.longitude(), place),
-                averageRating(place)
+                visitRecordRepository.findAverageRatingByPlaceId(place.getId())
         );
-    }
-
-    // 실제 후기 평점 평균을 우선 사용하고, 아직 후기가 없으면 에디터가 세팅해둔 기본 평점으로 대체한다.
-    private Double averageRating(Place place) {
-        Double reviewAverage = visitRecordRepository.findAverageRatingByPlaceId(place.getId());
-        return reviewAverage != null ? reviewAverage : place.getAverageRating();
     }
 
     private record RankedPlaceCandidate(

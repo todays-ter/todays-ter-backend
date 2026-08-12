@@ -149,7 +149,7 @@ class RecommendedPlaceServiceTest {
     }
 
     @Test
-    void averageRatingUsesReviewAverageWhenPresentOtherwiseFallsBackToPlaceDefault() {
+    void averageRatingUsesReviewAverageWhenPresentOtherwiseNull() {
         FortuneReport report = report(99L, 7L, FortuneReportStatus.COMPLETED, "content");
         RecommendationScoringContext scoringContext = scoringContext(report.getId());
         Place reviewed = place(1L, "reviewed", ElementType.FIRE, 4.0, "google");
@@ -174,7 +174,7 @@ class RecommendedPlaceServiceTest {
         );
 
         assertThat(response.recommendations().get(0).averageRating()).isEqualTo(4.8);
-        assertThat(response.recommendations().get(1).averageRating()).isEqualTo(3.5);
+        assertThat(response.recommendations().get(1).averageRating()).isNull();
     }
 
     @Test
