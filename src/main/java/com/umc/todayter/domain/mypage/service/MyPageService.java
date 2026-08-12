@@ -18,7 +18,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
+@Transactional
 public class MyPageService {
 
     private final MyPageNotificationSettingRepository myPageNotificationSettingRepository;
