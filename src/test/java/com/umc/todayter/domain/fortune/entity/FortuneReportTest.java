@@ -12,10 +12,29 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class FortuneReportTest {
+
+    @Test
+    void enableSharingCreatesStableToken() {
+        FortuneReport report = createReport();
+
+        report.enableSharing("0123456789abcdef0123456789abcdef");
+        report.enableSharing("fedcba9876543210fedcba9876543210");
+
+        assertThat(report.getShareToken()).isEqualTo("0123456789abcdef0123456789abcdef");
+    }
+
+    @Test
+    void enableSharingRejectsInvalidToken() {
+        FortuneReport report = createReport();
+
+        assertThatThrownBy(() -> report.enableSharing("short"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 
     @Test
     void progressCompletesInDefinedStages() {
