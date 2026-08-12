@@ -22,6 +22,7 @@ import com.umc.todayter.global.apiPayload.exception.CustomException;
 import com.umc.todayter.global.security.SecurityUtil;
 import com.umc.todayter.global.util.S3Uploader;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +33,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -70,6 +72,7 @@ public class RecordService {
             throw e;
         } catch (Exception e) {
             // DB 저장 실패 등으로 이미 S3에 올라간 파일이 고아로 남지 않도록 정리한다.
+            log.error("이미지 업로드 실패", e);
             uploadedUrls.forEach(s3Uploader::delete);
             throw new CustomException(RecordErrorCode.IMAGE_UPLOAD_FAILED);
         }
