@@ -10,13 +10,21 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "마이페이지 API", description = "마이페이지 알림, 권한, 약관 설정 관련 API")
+@Tag(name = "Mypage", description = "마이페이지 알림, 권한, 약관 설정 관련 API")
 @RestController
 @RequestMapping("/mypage")
 @RequiredArgsConstructor
 public class MyPageController {
 
     private final MyPageService myPageService;
+
+    // 0. 마이페이지 메인 조회 (GET /mypage) - [추가됨]
+    @Operation(summary = "마이페이지 메인 조회 API", description = "로그인한 유저의 마이페이지 메인 정보(프로필, 리포트 ID 등)를 조회합니다.")
+    @GetMapping
+    public ApiResponse<MyPageResponseDTO.MainDTO> getMyPage() {
+        Long userId = 1L; // TODO: JWT 토큰 추출 유저 ID
+        return ApiResponse.onSuccess(myPageService.getMyPage(userId), SuccessCode.OK);
+    }
 
     // 1. 알림 설정 조회 (GET /mypage/notification-settings)
     @Operation(summary = "알림 설정 조회 API", description = "유저의 알림 설정 상태를 조회합니다.")
