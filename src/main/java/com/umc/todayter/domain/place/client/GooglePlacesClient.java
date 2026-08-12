@@ -5,6 +5,7 @@ import com.umc.todayter.domain.place.client.dto.GooglePlaceDetailsResponse;
 import com.umc.todayter.domain.place.config.GooglePlacesProperties;
 import com.umc.todayter.global.apiPayload.exception.CustomException;
 import com.umc.todayter.global.apiPayload.response.ErrorCode;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.converter.HttpMessageConversionException;
 import org.springframework.stereotype.Component;
@@ -18,6 +19,7 @@ import org.springframework.web.util.UriBuilder;
 import java.util.Arrays;
 import java.util.Optional;
 
+@Slf4j
 @Component
 public class GooglePlacesClient {
 
@@ -53,9 +55,14 @@ public class GooglePlacesClient {
                     .map(photos -> photos.get(0))
                     .map(GooglePlaceDetailsResponse.Photo::name)
                     .filter(StringUtils::hasText);
-        } catch (RestClientResponseException | ResourceAccessException | HttpMessageConversionException e) {
+        } catch (RestClientResponseException e) {
+            log.error("Google Places API 요청 실패: status={}, body={}", e.getStatusCode(), e.getResponseBodyAsString(), e);
+            throw googlePlacesFailure();
+        } catch (ResourceAccessException | HttpMessageConversionException e) {
+            log.error("Google Places API 요청 실패", e);
             throw googlePlacesFailure();
         } catch (RestClientException e) {
+            log.error("Google Places API 요청 실패", e);
             throw googlePlacesFailure();
         }
     }
@@ -82,9 +89,14 @@ public class GooglePlacesClient {
             }
 
             return response.photoUri();
-        } catch (RestClientResponseException | ResourceAccessException | HttpMessageConversionException e) {
+        } catch (RestClientResponseException e) {
+            log.error("Google Places API 요청 실패: status={}, body={}", e.getStatusCode(), e.getResponseBodyAsString(), e);
+            throw googlePlacesFailure();
+        } catch (ResourceAccessException | HttpMessageConversionException e) {
+            log.error("Google Places API 요청 실패", e);
             throw googlePlacesFailure();
         } catch (RestClientException e) {
+            log.error("Google Places API 요청 실패", e);
             throw googlePlacesFailure();
         }
     }
@@ -105,6 +117,7 @@ public class GooglePlacesClient {
 
     private void validateApiKey() {
         if (!StringUtils.hasText(properties.apiKey())) {
+            log.error("google.places.api-key가 비어있습니다. GOOGLE_PLACES_API_KEY 환경변수를 확인하세요.");
             throw googlePlacesFailure();
         }
     }
