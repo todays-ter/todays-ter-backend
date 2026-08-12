@@ -2,6 +2,8 @@ package com.umc.todayter.global.apiPayload.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import com.umc.todayter.domain.notifications.dto.NotificationResponseDTO.NotificationListResultDTO;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -43,5 +45,10 @@ public class ApiResponse<T> {
                 .message(message)
                 .result(result)
                 .build();
+    }
+
+    public static ApiResponse<NotificationListResultDTO> onSuccess(NotificationListResultDTO notifications) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'onSuccess'");
     }
 }

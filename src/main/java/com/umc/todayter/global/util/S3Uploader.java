@@ -11,10 +11,14 @@ import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 
 import java.io.IOException;
 import java.net.URI;
+import java.time.Duration;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -27,7 +31,10 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class S3Uploader {
 
+    private static final Duration PRESIGNED_URL_DURATION = Duration.ofMinutes(15);
+
     private final S3Client s3Client;
+    private final S3Presigner s3Presigner;
     private final S3Properties s3Properties;
 
     public String upload(MultipartFile file, String keyPrefix) {
@@ -56,14 +63,38 @@ public class S3Uploader {
     // 정리 자체가 실패해도 원래 예외를 가리지 않도록 여기서 삼킨다.
     public void delete(String imageUrl) {
         try {
-            String key = URI.create(imageUrl).getPath().replaceFirst("^/", "");
             s3Client.deleteObject(DeleteObjectRequest.builder()
                     .bucket(s3Properties.bucket())
-                    .key(key)
+                    .key(extractKey(imageUrl))
                     .build());
         } catch (Exception e) {
             log.warn("S3 객체 정리 실패, 수동 확인 필요: {}", imageUrl, e);
         }
+    }
+
+    // 버킷을 퍼블릭으로 열지 않고도 조회할 수 있도록, 저장된(퍼블릭 형태) URL 대신
+    // 요청 시점마다 짧게 유효한 서명된 URL을 새로 발급해서 내려준다.
+    public String presignedGetUrl(String imageUrl) {
+        try {
+            GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                    .bucket(s3Properties.bucket())
+                    .key(extractKey(imageUrl))
+                    .build();
+
+            GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                    .signatureDuration(PRESIGNED_URL_DURATION)
+                    .getObjectRequest(getObjectRequest)
+                    .build();
+
+            return s3Presigner.presignGetObject(presignRequest).url().toString();
+        } catch (Exception e) {
+            log.error("이미지 조회 URL 서명 실패: {}", imageUrl, e);
+            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR, "이미지 조회에 실패했습니다.");
+        }
+    }
+
+    private String extractKey(String imageUrl) {
+        return URI.create(imageUrl).getPath().replaceFirst("^/", "");
     }
 
     private String extractExtension(String filename) {

@@ -64,7 +64,7 @@ public class RecordService {
             }
             saved = visitRecordImageRepository.saveAll(saved);
 
-            return saved.stream().map(ImageInfo::from).toList();
+            return saved.stream().map(image -> ImageInfo.from(image, s3Uploader::presignedGetUrl)).toList();
         } catch (CustomException e) {
             uploadedUrls.forEach(s3Uploader::delete);
             throw e;
@@ -105,7 +105,7 @@ public class RecordService {
         images.forEach(image -> image.attachToRecord(visitRecord));
 
         // 방문 인증 기능이 아직 없어 검증된 방문 시각을 알 수 없으므로 스텁으로 null을 반환한다.
-        return RecordResponse.from(visitRecord, images, null);
+        return RecordResponse.from(visitRecord, images, null, s3Uploader::presignedGetUrl);
     }
 
     public RecordDetailResponse getRecordDetail(Long recordId) {
@@ -121,7 +121,7 @@ public class RecordService {
         List<VisitRecordImage> images = visitRecordImageRepository.findByVisitRecordIdOrderBySortOrderAsc(recordId);
 
         // 방문 인증 기능이 아직 없어 검증된 방문 시각을 알 수 없으므로 스텁으로 null을 반환한다.
-        return RecordDetailResponse.from(visitRecord, images, null);
+        return RecordDetailResponse.from(visitRecord, images, null, s3Uploader::presignedGetUrl);
     }
 
     @Transactional
@@ -155,7 +155,7 @@ public class RecordService {
             finalImages = requestedImages;
         }
 
-        return RecordUpdateResponse.from(visitRecord, finalImages);
+        return RecordUpdateResponse.from(visitRecord, finalImages, s3Uploader::presignedGetUrl);
     }
 
     @Transactional
