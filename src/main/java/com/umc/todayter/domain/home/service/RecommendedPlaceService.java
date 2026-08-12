@@ -20,6 +20,7 @@ import com.umc.todayter.domain.place.service.PlaceDistanceCalculator;
 import com.umc.todayter.domain.place.service.PlaceRecommendationSnapshotService;
 import com.umc.todayter.domain.place.service.PlaceThumbnailUrlFactory;
 import com.umc.todayter.domain.place.service.RecommendationMatchingService;
+import com.umc.todayter.domain.record.repository.VisitRecordRepository;
 import com.umc.todayter.global.apiPayload.exception.CustomException;
 import com.umc.todayter.global.security.context.CurrentUserContext;
 import com.umc.todayter.global.security.context.CurrentUserType;
@@ -45,6 +46,7 @@ public class RecommendedPlaceService {
     private final PlaceRecommendationSnapshotService snapshotService;
     private final PlaceDistanceCalculator distanceCalculator;
     private final PlaceThumbnailUrlFactory thumbnailUrlFactory;
+    private final VisitRecordRepository visitRecordRepository;
 
     public HomeRecommendedPlacesResponse getRecommendedPlaces(
             CurrentUserContext context,
@@ -145,7 +147,7 @@ public class RecommendedPlaceService {
                 candidate.matchPercentage(),
                 snapshot.getWhyItMatches(),
                 distanceCalculator.distanceKm(query.latitude(), query.longitude(), place),
-                place.getAverageRating()
+                visitRecordRepository.findAverageRatingByPlaceId(place.getId())
         );
     }
 

@@ -16,6 +16,9 @@ public interface VisitRecordRepository extends JpaRepository<VisitRecord, Long> 
 
     List<VisitRecord> findByPlaceIdAndTypeOrderByCreatedAtDesc(Long placeId, RecordType type);
 
+    @Query("select avg(vr.rating) from VisitRecord vr where vr.place.id = :placeId and vr.type = com.umc.todayter.domain.record.enums.RecordType.REVIEW")
+    Double findAverageRatingByPlaceId(@Param("placeId") Long placeId);
+
     @Query("""
             select vr from VisitRecord vr
             where vr.member.id = :memberId
