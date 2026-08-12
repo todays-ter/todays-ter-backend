@@ -4,16 +4,12 @@ import com.umc.todayter.domain.place.entity.Place;
 import com.umc.todayter.domain.place.enums.ElementType;
 import com.umc.todayter.domain.place.enums.RegionCode;
 import com.umc.todayter.domain.place.enums.ThemeType;
-import com.umc.todayter.domain.place.repository.PlaceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -33,49 +29,22 @@ public class PlaceSeeder implements ApplicationRunner {
     private static final String SEED_CSV_PATH = "seed/places.csv";
     private static final Pattern CSV_SPLIT_PATTERN = Pattern.compile(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
 
-    private final PlaceRepository placeRepository;
+    private final PlaceSeedTransactionService placeSeedTransactionService;
 
     @Override
-    @Transactional
     public void run(ApplicationArguments args) throws IOException {
-        List<Place> places = readSeedPlaces();
-        if (placeRepository.count() > 0) {
-            syncSeedPlaces(places);
-            return;
-        }
+        readSeedPlaces().forEach(this::seedPlace);
+    }
 
+    private void seedPlace(Place seedPlace) {
         try {
-            placeRepository.saveAll(places);
-        } catch (DataIntegrityViolationException e) {
-            // 여러 인스턴스가 동시에 기동해 count() == 0을 함께 통과한 경우 발생.
-            // name unique 제약이 이 경합을 막아주므로, 먼저 커밋한 인스턴스만 시딩에 성공하고
-            // 나머지는 여기서 조용히 스킵한다 (앱 기동 자체를 실패시키지 않음).
-            log.warn("장소 초기 데이터가 다른 인스턴스에 의해 이미 시딩되어 스킵합니다.", e);
-        }
-    }
-
-    private void syncSeedPlaces(List<Place> seedPlaces) {
-        seedPlaces.forEach(seedPlace -> placeRepository.findByName(seedPlace.getName())
-                .ifPresentOrElse(
-                        existingPlace -> syncExistingPlace(seedPlace, existingPlace),
-                        () -> saveNewPlace(seedPlace)
-                ));
-    }
-
-    private void syncExistingPlace(Place seedPlace, Place existingPlace) {
-        if (StringUtils.hasText(seedPlace.getMapUrl())) {
-            existingPlace.updateMapUrl(seedPlace.getMapUrl());
-        }
-        if (StringUtils.hasText(seedPlace.getGooglePlaceId())) {
-            existingPlace.updateGooglePlaceId(seedPlace.getGooglePlaceId());
-        }
-    }
-
-    private void saveNewPlace(Place seedPlace) {
-        try {
-            placeRepository.save(seedPlace);
-        } catch (DataIntegrityViolationException e) {
-            log.warn("Place seed was already inserted by another instance. name={}", seedPlace.getName(), e);
+            placeSeedTransactionService.seedPlace(seedPlace);
+        } catch (PlaceSeedDataIntegrityException e) {
+            if (e.isInsert() && placeSeedTransactionService.existsByName(seedPlace.getName())) {
+                log.warn("Place seed was already inserted by another instance. name={}", seedPlace.getName(), e);
+                return;
+            }
+            throw e.getDataIntegrityViolationException();
         }
     }
 
@@ -155,7 +124,7 @@ public class PlaceSeeder implements ApplicationRunner {
     private String field(Map<String, Integer> header, String[] fields, String name) {
         Integer index = header.get(name);
         if (index == null || index >= fields.length || fields[index].isBlank()) {
-            throw new IllegalArgumentException("places.csv 필수 컬럼 값이 비어 있습니다: " + name);
+            throw new IllegalArgumentException("places.csv required column is blank: " + name);
         }
         return fields[index];
     }
