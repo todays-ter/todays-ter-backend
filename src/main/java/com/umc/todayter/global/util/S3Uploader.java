@@ -53,6 +53,7 @@ public class S3Uploader {
         } catch (IOException | SdkException e) {
             // SdkException은 서비스 응답 오류(S3Exception 등)와 클라이언트 측 오류(SdkClientException,
             // 네트워크/타임아웃 등)의 공통 상위 타입이라 둘 다 여기서 함께 처리된다.
+            log.error("S3 업로드 실패: bucket={}, key={}", s3Properties.bucket(), key, e);
             throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR, "이미지 업로드에 실패했습니다.");
         }
 
