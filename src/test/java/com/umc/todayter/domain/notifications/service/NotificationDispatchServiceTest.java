@@ -121,13 +121,13 @@ class NotificationDispatchServiceTest {
     }
 
     @Test
-    void dueActivityCreatesVisitRecordReminderAfterThreeHours() {
+    void dueActivityCreatesVisitRecordReminderAtConfiguredTime() {
         NotificationActivity activity = NotificationActivity.create(
                 MEMBER_ID,
                 10L,
                 NotificationActivityType.RECOMMENDATION_VIEWED,
                 java.time.LocalDateTime.of(2026, 8, 13, 12, 0),
-                java.time.LocalDateTime.of(2026, 8, 13, 15, 0)
+                java.time.LocalDateTime.of(2026, 8, 13, 18, 0)
         );
         ReflectionTestUtils.setField(activity, "id", 77L);
         Place place = place(10L, "기록할 터");
@@ -156,7 +156,7 @@ class NotificationDispatchServiceTest {
                 10L,
                 NotificationActivityType.PLACE_SAVED,
                 java.time.LocalDateTime.of(2026, 8, 13, 12, 0),
-                java.time.LocalDateTime.of(2026, 8, 13, 15, 0)
+                java.time.LocalDateTime.of(2026, 8, 13, 18, 0)
         );
         when(notificationActivityRepository.findDueActivities(any(), any()))
                 .thenReturn(List.of(activity));
