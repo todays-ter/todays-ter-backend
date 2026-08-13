@@ -75,6 +75,15 @@ kakao:
     auth-base-url: https://kauth.kakao.com
     api-base-url: https://kapi.kakao.com
 
+apple:
+  oauth:
+    client-id: ${APPLE_CLIENT_ID}
+    team-id: ${APPLE_TEAM_ID}
+    key-id: ${APPLE_KEY_ID}
+    private-key: ${APPLE_PRIVATE_KEY}
+    redirect-uri: ${APPLE_REDIRECT_URI}
+    auth-base-url: https://appleid.apple.com
+
 logging:
   level:
     root: INFO

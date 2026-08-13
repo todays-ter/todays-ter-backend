@@ -1,14 +1,14 @@
 package com.umc.todayter.domain.auth.controller;
 
+import com.umc.todayter.domain.auth.dto.AppleLoginResult;
 import com.umc.todayter.domain.auth.dto.KakaoLoginResult;
+import com.umc.todayter.domain.auth.dto.request.AppleLoginRequest;
 import com.umc.todayter.domain.auth.dto.request.KakaoLoginRequest;
+import com.umc.todayter.domain.auth.dto.response.AppleLoginResponse;
 import com.umc.todayter.domain.auth.dto.response.KakaoLoginResponse;
 import com.umc.todayter.domain.auth.dto.response.TokenResponse;
 import com.umc.todayter.domain.auth.enums.code.AuthSuccessCode;
-import com.umc.todayter.domain.auth.service.AuthTokenResult;
-import com.umc.todayter.domain.auth.service.KakaoAuthService;
-import com.umc.todayter.domain.auth.service.LogoutService;
-import com.umc.todayter.domain.auth.service.TokenReissueService;
+import com.umc.todayter.domain.auth.service.*;
 import com.umc.todayter.global.apiPayload.response.ApiResponse;
 import com.umc.todayter.global.security.AuthOriginValidator;
 import com.umc.todayter.global.security.SecurityUtil;
@@ -35,6 +35,7 @@ public class AuthController {
     private final AuthCookieUtil authCookieUtil;
     private final AuthOriginValidator authOriginValidator;
     private final KakaoAuthService kakaoAuthService;
+    private final AppleAuthService appleAuthService;
     private final TokenReissueService tokenReissueService;
     private final LogoutService logoutService;
 
@@ -79,6 +80,54 @@ public class AuthController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(ApiResponse.onSuccess(responseBody, AuthSuccessCode.KAKAO_LOGIN_SUCCESS));
+    }
+
+    @Operation(
+            summary = "애플 소셜 로그인",
+            description = """
+                애플 인가 코드와 Identity Token으로 사용자를 인증합니다.
+                기존 애플 계정이면 로그인하고, 처음 로그인한 계정이면 회원과 소셜 계정을 생성합니다.
+                비회원 온보딩 정보가 존재하면 회원에게 이전한 뒤 JWT를 발급합니다.
+                """
+    )
+    @SecurityRequirements
+    @PostMapping("/apple/login")
+    public ResponseEntity<ApiResponse<AppleLoginResponse>> appleLogin(
+            @Valid @RequestBody AppleLoginRequest request,
+            @CookieValue(
+                    name = GuestCookieUtil.COOKIE_NAME,
+                    required = false
+            ) String guestId,
+            HttpServletResponse response
+    ) {
+        AppleLoginResult result = appleAuthService.login(
+                request.authorizationCode(),
+                request.identityToken(),
+                request.nickname(),
+                guestId
+        );
+
+        AuthTokenResult tokenResult = result.tokenResult();
+
+        authCookieUtil.addRefreshTokenCookie(
+                response,
+                tokenResult.refreshToken(),
+                tokenResult.refreshMaxAgeSeconds()
+        );
+
+        // 로그인 및 비회원 데이터 이전 완료 후 guest_id 만료
+        guestCookieUtil.clearGuestCookie(response);
+
+        AppleLoginResponse responseBody = new AppleLoginResponse(
+                result.memberId(),
+                tokenResult.response().accessToken(),
+                result.newMember(),
+                result.onboardingStep()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.onSuccess(responseBody, AuthSuccessCode.APPLE_LOGIN_SUCCESS));
     }
 
     @Operation(
