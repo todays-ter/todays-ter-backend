@@ -109,6 +109,7 @@ public class SecurityConfig {
                                 "/fortune-reports/**",
                                 "/auth/dev/**",
                                 "/auth/kakao/login",
+                                "/auth/apple/login",
                                 "/auth/reissue"
                         ).permitAll()
 

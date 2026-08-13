@@ -29,15 +29,11 @@ public class AppleMemberService {
      * 회원 식별 기준은 이메일이 아닌, 소셜 로그인 제공자와 제공자 사용자 ID의 조합
      */
     @Transactional
-    public SocialMemberResult findOrCreate(AppleUserInfo userInfo) {
+    public SocialMemberResult findOrCreate(AppleUserInfo userInfo, String nickname) {
         return socialAccountRepository
                 .findByProviderAndProviderUserId(SocialProvider.APPLE, userInfo.providerUserId())
-
-                // 기존 소셜 계정이 존재하면 사용자 상태 확인 및 정보 갱신
                 .map(socialAccount -> handleExistingAccount(socialAccount, userInfo))
-
-                // 기존 계정이 없으면 사용자와 소셜 계정을 새로 생성
-                .orElseGet(() -> createMemberAndSocialAccount(userInfo));
+                .orElseGet(() -> createMemberAndSocialAccount(userInfo, nickname));
     }
 
     // 기존 애플 계정으로 로그인한 사용자를 처리함
@@ -56,8 +52,12 @@ public class AppleMemberService {
     }
 
     // 신규 사용자와 해당 사용자의 애플 소셜 계정을 생성함
-    private SocialMemberResult createMemberAndSocialAccount(AppleUserInfo userInfo) {
-        Member member = Member.create(userInfo.email(), DEFAULT_NICKNAME);
+    private SocialMemberResult createMemberAndSocialAccount(AppleUserInfo userInfo, String nickname) {
+        String resolvedNickname = StringUtils.hasText(nickname)
+                ? nickname
+                : DEFAULT_NICKNAME;
+
+        Member member = Member.create(userInfo.email(), resolvedNickname);
 
         memberRepository.save(member);
 

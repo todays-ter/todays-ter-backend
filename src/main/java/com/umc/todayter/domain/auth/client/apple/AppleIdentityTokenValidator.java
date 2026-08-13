@@ -31,7 +31,8 @@ public class AppleIdentityTokenValidator {
 
     private final ApplePublicKeyClient applePublicKeyClient;
     private final AppleOAuthProperties properties;
-    private final ObjectMapper objectMapper;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public AppleUserInfo validate(String identityToken) {
 
