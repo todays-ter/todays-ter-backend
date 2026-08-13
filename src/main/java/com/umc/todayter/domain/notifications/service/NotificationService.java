@@ -1,14 +1,13 @@
 package com.umc.todayter.domain.notifications.service;
 
+import com.umc.todayter.domain.member.service.MemberService;
 import com.umc.todayter.domain.notifications.dto.NotificationRequestDTO;
 import com.umc.todayter.domain.notifications.dto.NotificationResponseDTO;
 import com.umc.todayter.domain.notifications.entity.Notification;
 import com.umc.todayter.domain.notifications.entity.NotificationSetting;
-import com.umc.todayter.domain.notifications.entity.RemindCycle;
-import com.umc.todayter.domain.notifications.entity.RemindTime;
+import com.umc.todayter.domain.notifications.exception.NotificationErrorCode;
 import com.umc.todayter.domain.notifications.repository.NotificationRepository;
 import com.umc.todayter.domain.notifications.repository.NotificationSettingRepository;
-import com.umc.todayter.global.apiPayload.response.ErrorCode;
 import com.umc.todayter.global.apiPayload.exception.CustomException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -16,6 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.ZoneId;
 import java.util.List;
 
 @Service
@@ -23,115 +23,120 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class NotificationService {
 
+    private static final ZoneId KOREA_ZONE = ZoneId.of("Asia/Seoul");
+
+    private final MemberService memberService;
     private final NotificationRepository notificationRepository;
     private final NotificationSettingRepository notificationSettingRepository;
+    private final NotificationCursorCodec notificationCursorCodec;
 
-    // 1. 알림 목록 조회 (커서 페이징)
-    public NotificationResponseDTO.NotificationListResultDTO getNotifications(Long userId, Long cursor, int size) {
+    public NotificationResponseDTO.NotificationListResultDTO getNotifications(
+            Long memberId,
+            String cursor,
+            int size
+    ) {
+        memberService.getActiveMember(memberId);
         Pageable pageable = PageRequest.of(0, size + 1);
+        Long cursorId = notificationCursorCodec.decode(cursor);
 
-        List<Notification> notifications;
-        if (cursor == null || cursor == 0) {
-            notifications = notificationRepository.findByUserIdOrderByIdDesc(userId, pageable);
-        } else {
-            notifications = notificationRepository.findByUserIdAndIdLessThanOrderByIdDesc(userId, cursor, pageable);
-        }
+        List<Notification> notifications = cursorId == null
+                ? notificationRepository.findByUserIdOrderByIdDesc(memberId, pageable)
+                : notificationRepository.findByUserIdAndIdLessThanOrderByIdDesc(memberId, cursorId, pageable);
 
         boolean hasNext = notifications.size() > size;
         if (hasNext) {
             notifications = notifications.subList(0, size);
         }
 
-        Long nextCursor = hasNext ? notifications.get(notifications.size() - 1).getId() : null;
-
-        List<NotificationResponseDTO.NotificationDTO> dtoList = notifications.stream()
-                .map(n -> NotificationResponseDTO.NotificationDTO.builder()
-                        .notificationId(n.getId())
-                        .title(n.getTitle())
-                        .content(n.getContent())
-                        .type(n.getType())
-                        .isRead(n.isRead())
-                        .createdAt(n.getCreatedAt())
-                        .build())
+        String nextCursor = hasNext && !notifications.isEmpty()
+                ? notificationCursorCodec.encode(notifications.get(notifications.size() - 1).getId())
+                : null;
+        List<NotificationResponseDTO.NotificationDTO> notificationList = notifications.stream()
+                .map(this::toNotificationDTO)
                 .toList();
 
         return NotificationResponseDTO.NotificationListResultDTO.builder()
-                .notificationList(dtoList)
+                .notifications(notificationList)
                 .hasNext(hasNext)
                 .nextCursor(nextCursor)
                 .build();
     }
 
-    // 2. 미읽음 알림 개수 조회
-    public NotificationResponseDTO.UnreadCountResultDTO getUnreadCount(Long userId) {
-        int count = notificationRepository.countByUserIdAndIsReadFalse(userId);
+    public NotificationResponseDTO.UnreadCountResultDTO getUnreadCount(Long memberId) {
+        memberService.getActiveMember(memberId);
         return NotificationResponseDTO.UnreadCountResultDTO.builder()
-                .unreadCount(count)
+                .unreadCount(notificationRepository.countByUserIdAndIsReadFalse(memberId))
                 .build();
     }
 
-   // 3. 알림 단건 읽음 처리
-@Transactional
-public NotificationResponseDTO.ReadResultDTO readNotification(Long userId, Long notificationId) {
-    Notification notification = notificationRepository.findByIdAndUserId(notificationId, userId)
-            .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND)); // CustomException으로 변경
-
-    notification.markAsRead();
-
-    return NotificationResponseDTO.ReadResultDTO.builder()
-            .notificationId(notification.getId())
-            .build();
-}
-
-    // 4. 전체 알림 읽음 처리
     @Transactional
-    public NotificationResponseDTO.ReadAllResultDTO readAllNotifications(Long userId) {
-        int updatedCount = notificationRepository.markAllAsReadByUserId(userId);
+    public NotificationResponseDTO.ReadResultDTO readNotification(Long memberId, Long notificationId) {
+        memberService.getActiveMember(memberId);
+        Notification notification = notificationRepository.findByIdAndUserId(notificationId, memberId)
+                .orElseThrow(() -> new CustomException(NotificationErrorCode.NOTIFICATION_NOT_FOUND));
+        notification.markAsRead();
+
+        return NotificationResponseDTO.ReadResultDTO.builder()
+                .notificationId(notification.getId())
+                .build();
+    }
+
+    @Transactional
+    public NotificationResponseDTO.ReadAllResultDTO readAllNotifications(Long memberId) {
+        memberService.getActiveMember(memberId);
+        int updatedCount = notificationRepository.markAllAsReadByUserId(memberId);
         return NotificationResponseDTO.ReadAllResultDTO.builder()
                 .updatedCount(updatedCount)
                 .build();
     }
 
-    // 5. 알림 설정 정보 조회
-    public NotificationResponseDTO.NotificationSettingDTO getNotificationSettings(Long userId) {
-        NotificationSetting setting = getOrCreateNotificationSetting(userId);
-        return convertToSettingDTO(setting);
+    @Transactional
+    public NotificationResponseDTO.NotificationSettingDTO getNotificationSettings(Long memberId) {
+        memberService.getActiveMember(memberId);
+        return toSettingDTO(getOrCreateNotificationSetting(memberId));
     }
 
-    // 6. 알림 설정 수정
     @Transactional
     public NotificationResponseDTO.NotificationSettingDTO updateNotificationSettings(
-            Long userId, NotificationRequestDTO.UpdateNotificationSettingDTO request) {
-
-        NotificationSetting setting = getOrCreateNotificationSetting(userId);
+            Long memberId,
+            NotificationRequestDTO.UpdateNotificationSettingDTO request
+    ) {
+        memberService.getActiveMember(memberId);
+        NotificationSetting setting = getOrCreateNotificationSetting(memberId);
         setting.updateSettings(
-                request.isTodayRemind(),
+                request.getTodayRemind(),
                 request.getRemindCycle(),
                 request.getRemindTime(),
-                request.isSavedPlace(),
-                request.isServiceNotice(),
-                request.isMarketing()
+                request.getSavedPlace(),
+                request.getServiceNotice(),
+                request.getMarketing()
         );
-
-        return convertToSettingDTO(setting);
+        return toSettingDTO(setting);
     }
 
-    private NotificationSetting getOrCreateNotificationSetting(Long userId) {
-        return notificationSettingRepository.findByUserId(userId)
+    private NotificationSetting getOrCreateNotificationSetting(Long memberId) {
+        NotificationSetting setting = notificationSettingRepository.findByUserId(memberId)
                 .orElseGet(() -> notificationSettingRepository.save(
-                        NotificationSetting.builder()
-                                .userId(userId)
-                                .isTodayRemind(true)
-                                .remindCycle(RemindCycle.EVERY_2_DAYS)
-                                .remindTime(RemindTime.SIX_PM)
-                                .isSavedPlace(true)
-                                .isServiceNotice(true)
-                                .isMarketing(true)
-                                .build()
+                        NotificationSetting.createDefault(memberId)
                 ));
+        setting.repairLegacyDefaults();
+        return setting;
     }
 
-    private NotificationResponseDTO.NotificationSettingDTO convertToSettingDTO(NotificationSetting setting) {
+    private NotificationResponseDTO.NotificationDTO toNotificationDTO(Notification notification) {
+        return NotificationResponseDTO.NotificationDTO.builder()
+                .notificationId(notification.getId())
+                .placeId(notification.getPlaceId())
+                .title(notification.getTitle())
+                .content(notification.getContent())
+                .type(notification.getType())
+                .isRead(notification.isRead())
+                .createdAt(notification.getCreatedAt().atZone(KOREA_ZONE).toOffsetDateTime())
+                .build();
+    }
+
+    private NotificationResponseDTO.NotificationSettingDTO toSettingDTO(NotificationSetting setting) {
+        setting.repairLegacyDefaults();
         return NotificationResponseDTO.NotificationSettingDTO.builder()
                 .isTodayRemind(setting.isTodayRemind())
                 .remindCycle(setting.getRemindCycle())
@@ -141,4 +146,5 @@ public NotificationResponseDTO.ReadResultDTO readNotification(Long userId, Long 
                 .isMarketing(setting.isMarketing())
                 .build();
     }
+
 }
