@@ -104,7 +104,8 @@ public class NotificationDispatchService {
     }
 
     /**
-     * 추천 터를 보거나 저장한 후 3시간이 지났고, 해당 터의 방문 기록이 없으면 리마인드를 생성한다.
+     * 추천 터를 보거나 저장한 당일의 사용자 설정 알림 시각에,
+     * 해당 터의 방문 기록이 없으면 리마인드를 일괄 생성한다.
      */
     @Transactional
     public void dispatchVisitRecordReminders() {
